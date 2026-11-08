@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>HWZ Bili 下载器</title>
+  <link rel="icon" href="assets/favicon.ico">
+  <script src="assets/theme-init.js?v=__ASSET_VERSION__"></script>
+  <link rel="stylesheet" href="assets/styles.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="assets/components.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="assets/panels.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="assets/polish.css?v=__ASSET_VERSION__">
+</head>
+<body>
+  <svg class="svg-sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-logo" viewBox="0 0 48 48">
+      <path d="M14.5 10.5 9 5.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+      <path d="m33.5 10.5 5.5-5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+      <rect x="7" y="12" width="34" height="27" rx="9" fill="currentColor"/>
+      <path d="M20.5 20.2c0-1.3 1.4-2.1 2.5-1.4l7.6 4.6c1.1.7 1.1 2.3 0 3l-7.6 4.6c-1.1.7-2.5-.1-2.5-1.4v-9.4Z" fill="#fff"/>
+    </symbol>
+    <symbol id="i-home" viewBox="0 0 24 24">
+      <path d="m3.5 10.2 8.1-6.4a.8.8 0 0 1 1 0l8 6.4M5.4 9.4V19a1.5 1.5 0 0 0 1.5 1.5h3.3v-5.2h3.6v5.2h3.3a1.5 1.5 0 0 0 1.5-1.5V9.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-download" viewBox="0 0 24 24">
+      <path d="M12 3.5v11m0 0 4.2-4.2M12 14.5 7.8 10.3M4.5 15.8v2.1a2.6 2.6 0 0 0 2.6 2.6h9.8a2.6 2.6 0 0 0 2.6-2.6v-2.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="M12 7.2v5.1l3.4 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24">
+      <path d="M4 7h10M18 7h2M4 17h2M10 17h10M4 12h4M12 12h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      <circle cx="16" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <circle cx="8" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <circle cx="10" cy="12" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    </symbol>
+    <symbol id="i-link" viewBox="0 0 24 24">
+      <path d="m9.4 14.6 5.2-5.2M7.1 16.9l-1.2 1.2a3.6 3.6 0 0 1-5.1-5.1l3.4-3.4a3.6 3.6 0 0 1 5.1 0M16.9 7.1l1.2-1.2a3.6 3.6 0 0 1 5.1 5.1l-3.4 3.4a3.6 3.6 0 0 1-5.1 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" transform="translate(-.7 0) scale(.96)"/>
+    </symbol>
+    <symbol id="i-clipboard" viewBox="0 0 24 24">
+      <rect x="6.2" y="4.7" width="11.6" height="16" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/>
+      <path d="M9.4 4.7V3.9a1.8 1.8 0 0 1 1.8-1.8h1.6a1.8 1.8 0 0 1 1.8 1.8v.8" fill="none" stroke="currentColor" stroke-width="1.7"/>
+      <path d="M9.5 10h5M9.5 13.6h5M9.5 17.2h3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24">
+      <path d="M4.5 12h14m0 0-5.1-5.1M18.5 12l-5.1 5.1" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-arrow-up-right" viewBox="0 0 24 24">
+      <path d="M7 17 17 7m0 0H8.8M17 7v8.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-check" viewBox="0 0 24 24">
+      <path d="m5 12.5 4.5 4.4L19.5 6.8" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="m7.8 12 2.8 2.8 5.7-5.7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-close" viewBox="0 0 24 24">
+      <path d="m6.4 6.4 11.2 11.2M17.6 6.4 6.4 17.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-play" viewBox="0 0 24 24">
+      <path d="M8.1 5.9c0-1.1 1.2-1.8 2.2-1.2l9 5.2c1 .6 1 2 0 2.6l-9 5.2c-1 .6-2.2-.1-2.2-1.2V5.9Z" fill="currentColor"/>
+    </symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24">
+      <rect x="6.6" y="5" width="3.8" height="14" rx="1.5" fill="currentColor"/>
+      <rect x="13.6" y="5" width="3.8" height="14" rx="1.5" fill="currentColor"/>
+    </symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24">
+      <path d="M3.7 7.4a2 2 0 0 1 2-2h3.1l2 2.2h6.8a2 2 0 0 1 2 2v7.7a2 2 0 0 1-2 2H5.7a2 2 0 0 1-2-2V7.4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24">
+      <path d="M4.6 6.8h14.8M9.4 6.8V4.6c0-.7.5-1.2 1.2-1.2h2.8c.7 0 1.2.5 1.2 1.2v2.2M6.6 6.8l.8 12a2 2 0 0 0 2 1.9h5.2a2 2 0 0 0 2-1.9l.8-12M10 10.5v6M14 10.5v6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-search" viewBox="0 0 24 24">
+      <circle cx="10.7" cy="10.7" r="6.3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="m15.4 15.4 4.3 4.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="M12 2.8v2M12 19.2v2M2.8 12h2M19.2 12h2M5.5 5.5l1.4 1.4M17.1 17.1l1.4 1.4M18.5 5.5l-1.4 1.4M6.9 17.1l-1.4 1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24">
+      <path d="M19.3 14.6A7.7 7.7 0 0 1 9.4 4.7a8.2 8.2 0 1 0 9.9 9.9Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24">
+      <rect x="3.2" y="4.3" width="17.6" height="12.2" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="M9.2 20.2h5.6M12 16.5v3.7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24">
+      <path d="M12 2.8c.4 4.1 2.9 6.6 7 7-4.1.4-6.6 2.9-7 7-.4-4.1-2.9-6.6-7-7 4.1-.4 6.6-2.9 7-7ZM19.2 15.1c.2 1.8 1.3 2.9 3.1 3.1-1.8.2-2.9 1.3-3.1 3.1-.2-1.8-1.3-2.9-3.1-3.1 1.8-.2 2.9-1.3 3.1-3.1ZM4.1 2.2c.1 1.1.8 1.8 1.9 1.9-1.1.1-1.8.8-1.9 1.9-.1-1.1-.8-1.8-1.9-1.9 1.1-.1 1.8-.8 1.9-1.9Z" fill="currentColor"/>
+    </symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24">
+      <path d="m13.1 2.9-8 10.6h5.6l-1 7.6 8.2-10.8h-5.7l.9-7.4Z" fill="currentColor"/>
+    </symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24">
+      <path d="M12 2.9c2.3 1.6 4.8 2.5 7.3 2.8v6.2c0 4.3-3 7.5-7.3 9.2-4.3-1.7-7.3-4.9-7.3-9.2V5.7C7.2 5.4 9.7 4.5 12 2.9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="m8.8 12 2.2 2.2 4.4-4.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-user" viewBox="0 0 24 24">
+      <circle cx="12" cy="8" r="3.8" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="M4.7 20.2c.5-3.8 3.4-6 7.3-6s6.8 2.2 7.3 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24">
+      <path d="M10.2 4.2H5.8a2 2 0 0 0-2 2v11.6a2 2 0 0 0 2 2h4.4M15.2 8.3l3.7 3.7-3.7 3.7M8.8 12h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24">
+      <path d="M19.6 8.6A8.2 8.2 0 1 0 20 15M19.6 3.9v4.8h-4.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="8.8" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="M12 7.5v5.3M12 16.4v.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-film" viewBox="0 0 24 24">
+      <rect x="3.2" y="4.6" width="17.6" height="14.8" rx="3" fill="none" stroke="currentColor" stroke-width="1.7"/>
+      <path d="M8 4.8v14.4M16 4.8v14.4M3.4 9.2h4.4M3.4 14.8h4.4M16.2 9.2h4.4M16.2 14.8h4.4" fill="none" stroke="currentColor" stroke-width="1.4"/>
+    </symbol>
+    <symbol id="i-music" viewBox="0 0 24 24">
+      <path d="M9.5 17.2V5.7l9-2v11.6M9.5 8.2l9-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <ellipse cx="6.8" cy="17.6" rx="2.8" ry="2.3" transform="rotate(-12 6.8 17.6)" fill="none" stroke="currentColor" stroke-width="1.7"/>
+      <ellipse cx="15.8" cy="15.8" rx="2.8" ry="2.3" transform="rotate(-12 15.8 15.8)" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    </symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 24 24">
+      <path d="m6.5 9.2 5.5 5.5 5.5-5.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-hard-drive" viewBox="0 0 24 24">
+      <rect x="3.2" y="5.2" width="17.6" height="13.6" rx="3.2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+      <path d="M7 10h10M7 14h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      <circle cx="17.2" cy="14.2" r="1" fill="currentColor"/>
+    </symbol>
+    <symbol id="i-info" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="8.8" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="M12 10.7v5.2M12 7.6v.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-window-min" viewBox="0 0 12 12">
+      <path d="M2.5 6h7" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-window-max" viewBox="0 0 12 12">
+      <rect x="2.7" y="2.7" width="6.6" height="6.6" rx=".6" fill="none" stroke="currentColor" stroke-width="1"/>
+    </symbol>
+    <symbol id="i-window-restore" viewBox="0 0 12 12">
+      <path d="M4.1 2.5h4.9a.5.5 0 0 1 .5.5v4.9M2.5 4.1v4.9a.5.5 0 0 0 .5.5h4.9" fill="none" stroke="currentColor" stroke-width="1"/>
+    </symbol>
+    <symbol id="i-window-close" viewBox="0 0 12 12">
+      <path d="m2.7 2.7 6.6 6.6M9.3 2.7 2.7 9.3" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-empty-video" viewBox="0 0 160 120">
+      <rect x="22" y="27" width="116" height="72" rx="16" fill="currentColor" opacity=".07"/>
+      <rect x="34" y="39" width="92" height="48" rx="12" fill="currentColor" opacity=".12"/>
+      <circle cx="80" cy="63" r="17" fill="currentColor" opacity=".18"/>
+      <path d="m76 56 11 7-11 7V56Z" fill="currentColor" opacity=".65"/>
+      <path d="M22 100h116" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".12"/>
+      <circle cx="127" cy="37" r="7" fill="currentColor" opacity=".22"/>
+      <path d="m131 50 5-5M23 23l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".25"/>
+    </symbol>
+    <symbol id="i-empty-download" viewBox="0 0 160 120">
+      <path d="M38 83h84a20 20 0 0 0 4-39.6A34 34 0 0 0 62.4 32 26 26 0 0 0 20 57a26 26 0 0 0 18 26Z" fill="currentColor" opacity=".07"/>
+      <path d="M80 36v34m0 0 12-12M80 70 68 58" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>
+      <path d="M58 83h44" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".3"/>
+      <circle cx="126" cy="32" r="4" fill="currentColor" opacity=".3"/>
+      <circle cx="34" cy="39" r="3" fill="currentColor" opacity=".25"/>
+    </symbol>
+  </svg>
+
+  <div class="app-shell">
+    <header class="titlebar">
+      <div class="drag-surface pywebview-drag-region" id="drag-surface"></div>
+      <div class="titlebar-brand">
+        <span class="brand-mark">
+          <svg class="icon brand-logo" aria-hidden="true"><use href="#i-logo"></use></svg>
+        </span>
+        <span class="brand-name">HWZ</span>
+        <span class="brand-separator"></span>
+        <span class="brand-sub">Bili 下载器</span>
+      </div>
+      <div class="titlebar-center">
+        <span class="titlebar-status"><span class="status-dot"></span>本地运行 · 极速引擎</span>
+      </div>
+      <div class="titlebar-actions">
+        <button class="title-btn" id="theme-btn" type="button" title="切换主题" aria-label="切换主题">
+          <svg class="icon theme-icon-light"><use href="#i-moon"></use></svg>
+          <svg class="icon theme-icon-dark"><use href="#i-sun"></use></svg>
+        </button>
+        <div class="window-controls">
+          <button class="window-btn" id="win-min" type="button" aria-label="最小化"><svg class="icon"><use href="#i-window-min"></use></svg></button>
+          <button class="window-btn" id="win-max" type="button" aria-label="最大化"><svg class="icon"><use href="#i-window-max"></use></svg></button>
+          <button class="window-btn window-btn-close" id="win-close" type="button" aria-label="关闭"><svg class="icon"><use href="#i-window-close"></use></svg></button>
+        </div>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar">
+        <div class="sidebar-main">
+          <div class="nav-label">工作台</div>
+          <nav class="nav" aria-label="主导航">
+            <button class="nav-item active" type="button" data-nav="home" aria-label="首页">
+              <span class="nav-icon"><svg class="icon"><use href="#i-home"></use></svg></span>
+              <span class="nav-text">首页</span>
+              <span class="nav-glow"></span>
+            </button>
+            <button class="nav-item" type="button" data-nav="downloads" aria-label="下载中心">
+              <span class="nav-icon"><svg class="icon"><use href="#i-download"></use></svg></span>
+              <span class="nav-text">下载中心</span>
+              <span class="nav-badge" id="nav-task-badge" hidden>0</span>
+              <span class="nav-glow"></span>
+            </button>
+            <button class="nav-item" type="button" data-nav="history" aria-label="下载记录">
+              <span class="nav-icon"><svg class="icon"><use href="#i-clock"></use></svg></span>
+              <span class="nav-text">下载记录</span>
+              <span class="nav-glow"></span>
+            </button>
+            <button class="nav-item" type="button" data-nav="settings" aria-label="设置">
+              <span class="nav-icon"><svg class="icon"><use href="#i-settings"></use></svg></span>
+              <span class="nav-text">设置</span>
+              <span class="nav-glow"></span>
+            </button>
+          </nav>
+
+          <div class="nav-label nav-label-tips">小提示</div>
+          <div class="sidebar-tip">
+            <span class="sidebar-tip-icon"><svg class="icon"><use href="#i-sparkles"></use></svg></span>
+            <p>在任意页面直接 <kbd>Ctrl</kbd> + <kbd>V</kbd>，链接会被自动识别。</p>
+          </div>
+        </div>
+
+        <div class="sidebar-bottom">
+          <div class="engine-card">
+            <div class="engine-card-head">
+              <span class="engine-orb"><svg class="icon"><use href="#i-bolt"></use></svg></span>
+              <span>极速下载引擎</span>
+              <span class="engine-live" title="引擎已就绪"></span>
+            </div>
+            <p>智能多线程 · 音视频无损合并</p>
+            <div class="engine-meter"><span></span></div>
+            <div class="engine-foot"><span id="engine-connections">12</span> 线程就绪<span class="engine-shield"><svg class="icon"><use href="#i-shield"></use></svg> 本地处理</span></div>
+          </div>
+
+          <button class="account-card" id="sidebar-account" type="button">
+            <span class="account-avatar" id="sidebar-avatar">
+              <svg class="icon"><use href="#i-user"></use></svg>
+            </span>
+            <span class="account-info">
+              <span class="account-name" id="sidebar-account-name">未登录</span>
+              <span class="account-sub" id="sidebar-account-sub">登录解锁更高画质</span>
+            </span>
+            <span class="account-arrow"><svg class="icon"><use href="#i-arrow-right"></use></svg></span>
+          </button>
+
+          <div class="sidebar-version"><span>HWZ Bili Downloader</span><span id="version-label">v1.0.0</span></div>
+        </div>
+      </aside>
+
+      <main class="main" id="main-scroll">
+        <section class="page active" data-page="home" id="page-home">
+          <div class="page-topline">
+            <div>
+              <div class="eyebrow"><span class="eyebrow-dot"></span><span id="greeting">下午好</span>，欢迎回来</div>
+              <h1 class="page-title">今天想收藏哪一段精彩？</h1>
+            </div>
+            <div class="topline-actions">
+              <div class="today-pill">
+                <span class="today-pill-label">今日完成</span>
+                <strong id="today-completed">0</strong>
+              </div>
+              <button class="icon-text-btn" type="button" data-nav="history">
+                <svg class="icon"><use href="#i-clock"></use></svg>记录
+              </button>
+            </div>
+          </div>
+
+          <section class="hero">
+            <div class="hero-grid-bg"></div>
+            <div class="hero-copy">
+              <div class="hero-kicker"><span class="kicker-spark"><svg class="icon"><use href="#i-sparkles"></use></svg></span>BILIBILI DOWNLOADER</div>
+              <h2>把喜欢的视频，<br><span class="hero-highlight">留在本地。</span></h2>
+              <p class="hero-sub">粘贴链接，自动解析清晰度、封面与分P信息。多线程下载，音画无损合并。</p>
+
+              <form class="url-bar" id="url-form" autocomplete="off">
+                <svg class="icon url-leading"><use href="#i-link"></use></svg>
+                <input id="url-input" name="url" type="text" inputmode="url" autocomplete="off" spellcheck="false"
+                       placeholder="粘贴 B 站视频链接，例如 https://bilibili.com/video/BV..." aria-label="视频链接">
+                <button class="clear-url" id="clear-url" type="button" title="清空" aria-label="清空链接" hidden>
+                  <svg class="icon"><use href="#i-close"></use></svg>
+                </button>
+                <button class="paste-btn" id="paste-btn" type="button">
+                  <svg class="icon"><use href="#i-clipboard"></use></svg><span>粘贴</span>
+                </button>
+                <button class="primary-btn parse-btn" id="parse-btn" type="submit">
+                  <span class="btn-label">解析视频</span>
+                  <svg class="icon btn-arrow"><use href="#i-arrow-right"></use></svg>
+                  <span class="btn-spinner" hidden></span>
+                </button>
+              </form>
+
+              <div class="hero-hints">
+                <span><svg class="icon"><use href="#i-check-circle"></use></svg>支持 BV / av / b23.tv</span>
+                <span><svg class="icon"><use href="#i-bolt"></use></svg><span class="hint-connections">12</span> 线程极速下载</span>
+                <button type="button" class="login-hint" id="login-hint">登录解锁 4K 画质 <svg class="icon"><use href="#i-arrow-up-right"></use></svg></button>
+              </div>
+            </div>
+
+            <div class="hero-art" aria-hidden="true">
+              <div class="art-halo"></div>
+              <div class="art-card art-card-main">
+                <div class="art-card-top">
+                  <span class="art-dots"><i></i><i></i><i></i></span>
+                  <span class="art-tag">HWZ PLAYER</span>
+                </div>
+                <div class="art-cover">
+                  <span class="art-orb art-orb-one"></span>
+                  <span class="art-orb art-orb-two"></span>
+                  <span class="art-scanline"></span>
+                  <span class="art-play"><svg class="icon"><use href="#i-play"></use></svg></span>
+                  <span class="art-time">04:28 / 08:34</span>
+                </div>
+                <div class="art-progress"><span></span></div>
+                <div class="art-meta"><span class="art-line long"></span><span class="art-line"></span></div>
+              </div>
+              <div class="art-chip art-chip-speed"><span class="chip-icon"><svg class="icon"><use href="#i-bolt"></use></svg></span><span><strong>24.8</strong><small>MB/s</small></span></div>
+              <div class="art-chip art-chip-quality"><span class="chip-check"><svg class="icon"><use href="#i-check"></use></svg></span><span><strong>4K HDR</strong><small>原画收藏</small></span></div>
+              <div class="art-ring art-ring-one"></div>
+              <div class="art-ring art-ring-two"></div>
+            </div>
+          </section>
+
+          <div class="parse-stage" id="parse-stage" aria-live="polite"></div>
+
+          <section class="recent-section" id="recent-section">
+            <div class="section-head">
+              <div>
+                <h3>最近下载</h3>
+                <p>刚刚收藏过的精彩，随时回到本地。</p>
+              </div>
+              <button class="text-link" type="button" data-nav="history">查看全部 <svg class="icon"><use href="#i-arrow-right"></use></svg></button>
+            </div>
+            <div class="recent-grid" id="recent-list"></div>
+          </section>
+
+          <footer class="page-footnote">
+            <svg class="icon"><use href="#i-shield"></use></svg>
+            <span>所有解析与下载均在本机完成，Cookie 仅保存在本机。请仅用于个人学习与收藏，尊重 UP 主版权。</span>
+          </footer>
+        </section>
+
+        <section class="page" data-page="downloads" id="page-downloads">
+          <div class="page-header">
+            <div>
+              <div class="eyebrow"><span class="eyebrow-dot"></span>任务队列</div>
+              <h1 class="page-title">下载中心</h1>
+              <p class="page-subtitle">多线程分片下载，完成后自动无损合并为 MP4。</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-ghost" type="button" id="pause-all-btn">
+                <svg class="icon"><use href="#i-pause"></use></svg>全部暂停
+              </button>
+              <button class="btn btn-secondary" type="button" id="open-downloads-btn">
+                <svg class="icon"><use href="#i-folder"></use></svg>打开文件夹
+              </button>
+            </div>
+          </div>
+
+          <div class="stat-ribbon">
+            <div class="stat-item">
+              <span class="stat-icon pink"><svg class="icon"><use href="#i-bolt"></use></svg></span>
+              <span class="stat-copy"><small>实时速度</small><strong id="global-speed">0 KB/s</strong></span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+              <span class="stat-icon aqua"><svg class="icon"><use href="#i-download"></use></svg></span>
+              <span class="stat-copy"><small>进行中</small><strong><span id="active-count">0</span> <em>个任务</em></strong></span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+              <span class="stat-icon green"><svg class="icon"><use href="#i-check-circle"></use></svg></span>
+              <span class="stat-copy"><small>今日完成</small><strong><span id="today-completed-downloads">0</span> <em>个视频</em></strong></span>
+            </div>
+          </div>
+
+          <div class="task-list" id="downloads-list"></div>
+          <div class="empty-state" id="downloads-empty" hidden>
+            <div class="empty-illustration"><svg viewBox="0 0 160 120"><use href="#i-empty-download"></use></svg></div>
+            <h3>下载队列还是空的</h3>
+            <p>去首页粘贴一个 B 站链接，几秒钟后就能在这里看到进度。</p>
+            <button class="btn btn-primary" type="button" data-nav="home"><svg class="icon"><use href="#i-link"></use></svg>去解析视频</button>
+          </div>
+
+          <section class="feature-strip" aria-label="下载引擎特性">
+            <div class="feature-item">
+              <span class="feature-icon pink"><svg class="icon"><use href="#i-bolt"></use></svg></span>
+              <div><strong><span class="feature-connections">12</span> 线程并行加速</strong><p>分片同时连接 CDN，自动选择可用的高速线路。</p></div>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon aqua"><svg class="icon"><use href="#i-music"></use></svg></span>
+              <div><strong>音视频无损合并</strong><p>DASH 音画流下载完成后使用 FFmpeg 秒级封装。</p></div>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon green"><svg class="icon"><use href="#i-shield"></use></svg></span>
+              <div><strong>本地安全处理</strong><p>解析、下载和登录 Cookie 都只留在你的电脑里。</p></div>
+            </div>
+          </section>
+        </section>
+
+        <section class="page" data-page="history" id="page-history">
+          <div class="page-header">
+            <div>
+              <div class="eyebrow"><span class="eyebrow-dot"></span>本地收藏</div>
+              <h1 class="page-title">下载记录</h1>
+              <p class="page-subtitle">已完成 <span id="history-count">0</span> 个视频，文件都在你的下载文件夹里。</p>
+            </div>
+            <button class="btn btn-secondary" type="button" id="open-downloads-history">
+              <svg class="icon"><use href="#i-folder"></use></svg>打开下载文件夹
+            </button>
+          </div>
+
+          <div class="history-toolbar">
+            <label class="search-box">
+              <svg class="icon"><use href="#i-search"></use></svg>
+              <input type="search" id="history-search" placeholder="搜索标题、UP 主或 BV 号" autocomplete="off">
+            </label>
+            <span class="history-summary" id="history-summary"></span>
+          </div>
+
+          <div class="history-list" id="history-list"></div>
+          <div class="empty-state" id="history-empty" hidden>
+            <div class="empty-illustration"><svg viewBox="0 0 160 120"><use href="#i-empty-video"></use></svg></div>
+            <h3>还没有下载记录</h3>
+            <p>完成的视频会安全地保存在本地，并在这里留下记录。</p>
+            <button class="btn btn-primary" type="button" data-nav="home"><svg class="icon"><use href="#i-sparkles"></use></svg>去发现新视频</button>
+          </div>
+        </section>
+
+        <section class="page" data-page="settings" id="page-settings">
+          <div class="page-header">
+            <div>
+              <div class="eyebrow"><span class="eyebrow-dot"></span>偏好设置</div>
+              <h1 class="page-title">设置</h1>
+              <p class="page-subtitle">调整下载引擎、保存位置与界面外观。</p>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <div class="settings-column">
+              <section class="settings-card">
+                <div class="settings-card-head">
+                  <span class="settings-icon pink"><svg class="icon"><use href="#i-download"></use></svg></span>
+                  <div><h3>下载设置</h3><p>新任务会使用这些偏好。</p></div>
+                </div>
+
+                <div class="setting-block">
+                  <label class="setting-label" for="download-dir">保存位置</label>
+                  <div class="path-field">
+                    <svg class="icon"><use href="#i-folder"></use></svg>
+                    <input id="download-dir" type="text" spellcheck="false" aria-label="下载保存位置">
+                    <button class="mini-btn" id="browse-dir" type="button">浏览</button>
+                    <button class="mini-btn primary-mini" id="save-dir" type="button">保存</button>
+                  </div>
+                  <div class="setting-inline">
+                    <button class="inline-link" id="open-dir" type="button"><svg class="icon"><use href="#i-arrow-up-right"></use></svg>打开当前目录</button>
+                    <button class="inline-link" id="restore-dir" type="button">恢复默认</button>
+                  </div>
+                </div>
+
+                <div class="setting-block">
+                  <span class="setting-label">下载线程</span>
+                  <div class="choice-grid choice-grid-connections" id="connection-options">
+                    <button class="choice-card" type="button" data-connections="4"><strong>4</strong><span>轻量</span></button>
+                    <button class="choice-card" type="button" data-connections="8"><strong>8</strong><span>均衡</span></button>
+                    <button class="choice-card" type="button" data-connections="12"><strong>12</strong><span>推荐</span></button>
+                    <button class="choice-card" type="button" data-connections="16"><strong>16</strong><span>极速</span></button>
+                  </div>
+                  <p class="setting-note">线程越多并不总是越快，建议保持 12 线程。</p>
+                </div>
+
+                <div class="setting-block">
+                  <span class="setting-label">视频编码偏好</span>
+                  <div class="choice-row" id="codec-options">
+                    <button class="chip-choice" type="button" data-codec="avc">H.264 <small>兼容优先</small></button>
+                    <button class="chip-choice" type="button" data-codec="hevc">HEVC <small>体积更小</small></button>
+                    <button class="chip-choice" type="button" data-codec="av1">AV1 <small>高压缩率</small></button>
+                  </div>
+                  <p class="setting-note">部分视频不提供所选编码时会自动回退。修改后请重新解析视频。</p>
+                </div>
+
+                <div class="setting-list">
+                  <label class="toggle-row">
+                    <span class="toggle-copy"><strong>默认保存封面</strong><small>下载视频时同时保存一张封面 JPG。</small></span>
+                    <span class="switch"><input type="checkbox" id="toggle-save-cover"><span class="switch-track"></span><span class="switch-thumb"></span></span>
+                  </label>
+                  <label class="toggle-row">
+                    <span class="toggle-copy"><strong>完成后打开文件夹</strong><small>每次下载完成时自动打开所在目录。</small></span>
+                    <span class="switch"><input type="checkbox" id="toggle-open-folder"><span class="switch-track"></span><span class="switch-thumb"></span></span>
+                  </label>
+                  <label class="toggle-row">
+                    <span class="toggle-copy"><strong>粘贴后自动下载</strong><small>粘贴链接解析成功后，自动按推荐清晰度开始下载；点击解析结果中的选项可取消。</small></span>
+                    <span class="switch"><input type="checkbox" id="toggle-auto-download"><span class="switch-track"></span><span class="switch-thumb"></span></span>
+                  </label>
+                </div>
+              </section>
+            </div>
+
+            <div class="settings-column">
+              <section class="settings-card account-settings-card">
+                <div class="settings-card-head">
+                  <span class="settings-icon aqua"><svg class="icon"><use href="#i-user"></use></svg></span>
+                  <div><h3>B站账号</h3><p>扫码登录，解锁 1080P+ / 4K。</p></div>
+                </div>
+                <div class="settings-account" id="settings-account"></div>
+                <div class="privacy-note"><svg class="icon"><use href="#i-shield"></use></svg>登录状态仅保存在本机，不会上传到任何服务器。</div>
+              </section>
+
+              <section class="settings-card">
+                <div class="settings-card-head">
+                  <span class="settings-icon lilac"><svg class="icon"><use href="#i-sun"></use></svg></span>
+                  <div><h3>外观</h3><p>选择你喜欢的界面氛围。</p></div>
+                </div>
+                <div class="theme-options" id="theme-options">
+                  <button type="button" data-theme-choice="light"><span class="theme-preview theme-preview-light"><i></i><i></i><i></i></span><span>浅色</span></button>
+                  <button type="button" data-theme-choice="dark"><span class="theme-preview theme-preview-dark"><i></i><i></i><i></i></span><span>深色</span></button>
+                  <button type="button" data-theme-choice="system"><span class="theme-preview theme-preview-system"><i></i><i></i><i></i></span><span>跟随系统</span></button>
+                </div>
+              </section>
+
+              <section class="settings-card">
+                <div class="settings-card-head">
+                  <span class="settings-icon green"><svg class="icon"><use href="#i-hard-drive"></use></svg></span>
+                  <div><h3>存储与数据</h3><p>管理本地缓存和下载记录。</p></div>
+                </div>
+                <div class="data-actions">
+                  <button class="data-row" id="open-data-dir" type="button">
+                    <span><svg class="icon"><use href="#i-folder"></use></svg><span><strong>打开数据目录</strong><small>查看封面缓存与应用日志</small></span></span>
+                    <svg class="icon row-arrow"><use href="#i-arrow-right"></use></svg>
+                  </button>
+                  <button class="data-row" id="clear-cache" type="button">
+                    <span><svg class="icon"><use href="#i-refresh"></use></svg><span><strong>清理缓存</strong><small>删除临时分片和图片缓存</small></span></span>
+                    <svg class="icon row-arrow"><use href="#i-arrow-right"></use></svg>
+                  </button>
+                  <button class="data-row danger-row" id="clear-history" type="button">
+                    <span><svg class="icon"><use href="#i-trash"></use></svg><span><strong>清空下载记录</strong><small>仅清除列表，不会删除视频文件</small></span></span>
+                    <svg class="icon row-arrow"><use href="#i-arrow-right"></use></svg>
+                  </button>
+                </div>
+              </section>
+
+              <section class="about-card">
+                <div class="about-brand">
+                  <span class="brand-mark about-mark"><svg class="icon"><use href="#i-logo"></use></svg></span>
+                  <div><strong>HWZ Bili 下载器</strong><span id="about-version">v1.0.0</span></div>
+                </div>
+                <p>一个为收藏而生的本地 B 站视频下载器。简单、快速，不打扰。</p>
+                <div class="about-chips"><span>本地解析</span><span>多线程加速</span><span>FFmpeg 无损合并</span></div>
+                <div class="about-foot"><span>仅供个人学习与收藏</span><span>Made by HWZ Studio</span></div>
+              </section>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-layer" id="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-title">
+    <div class="modal-card login-modal">
+      <button class="modal-close" type="button" id="login-close" aria-label="关闭"><svg class="icon"><use href="#i-close"></use></svg></button>
+      <div class="login-copy">
+        <div class="login-kicker"><span class="kicker-spark"><svg class="icon"><use href="#i-sparkles"></use></svg></span>SCAN TO UNLOCK</div>
+        <h2 id="login-title">登录哔哩哔哩</h2>
+        <p class="login-intro">扫码登录后，即可解析 <strong>1080P+ / 4K / 大会员</strong> 画质，并支持需要登录的视频。</p>
+        <ol class="login-steps">
+          <li><span>01</span>打开手机上的哔哩哔哩 App</li>
+          <li><span>02</span>点击右上角「扫一扫」</li>
+          <li><span>03</span>扫描右侧二维码并确认</li>
+        </ol>
+        <div class="privacy-note"><svg class="icon"><use href="#i-shield"></use></svg>Cookie 只保存在本机，不会离开你的电脑。</div>
+      </div>
+      <div class="login-qr-panel">
+        <div class="qr-frame">
+          <div class="qr-loading" id="qr-loading"><span class="spinner dark"></span><small>正在生成二维码…</small></div>
+          <div class="qr-box" id="qr-box"></div>
+          <div class="qr-corner tl"></div><div class="qr-corner tr"></div><div class="qr-corner bl"></div><div class="qr-corner br"></div>
+        </div>
+        <div class="qr-status" id="qr-status"><span class="qr-status-dot"></span><span>请使用哔哩哔哩 App 扫码</span></div>
+        <button class="qr-refresh" id="qr-refresh" type="button" hidden><svg class="icon"><use href="#i-refresh"></use></svg>刷新二维码</button>
+        <small class="qr-tip">二维码 3 分钟内有效</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-layer" id="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="modal-card confirm-modal">
+      <div class="confirm-icon"><svg class="icon"><use href="#i-alert"></use></svg></div>
+      <h3 id="confirm-title">确认操作</h3>
+      <p id="confirm-message"></p>
+      <div class="confirm-actions">
+        <button class="btn btn-ghost" type="button" id="confirm-cancel">取消</button>
+        <button class="btn btn-danger" type="button" id="confirm-ok">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+  <div class="boot-overlay" id="boot-overlay">
+    <span class="brand-mark boot-mark"><svg class="icon"><use href="#i-logo"></use></svg></span>
+    <span class="boot-spinner"></span>
+  </div>
+
+  <script src="assets/app.js?v=__ASSET_VERSION__"></script>
+</body>
+</html>
+
+

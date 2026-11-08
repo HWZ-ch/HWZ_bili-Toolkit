@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+
+# Build output / large binaries
+build/
+dist/
+*.spec.bak
+*.exe
+*.zip
+vendor/bin/ffmpeg.exe
+
+# Local helper metadata
+.build_meta/
+
+# Runtime data
+data/
+tmp_test/
+*.log
+
+# Test artifacts
+docs_*.png
+native_*.png
+click_*.png
+titlebar_crop.png
+assets_icon.png
+
+# OS / editor
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+.DS_Store
