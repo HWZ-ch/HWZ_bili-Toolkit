@@ -3,7 +3,7 @@
 一个为 Windows 打造的本地 B 站视频下载器：粘贴链接即可自动解析，多线程加速下载，自动合并音视频。
 
 > **GitHub 仓库**：https://github.com/HWZ-ch/HWZ_bili-video-download  
-> **直接下载 Windows 免安装版**：[前往 Releases](https://github.com/HWZ-ch/HWZ_bili-video-download/releases/latest)
+> **直接下载 Windows 免安装版**：[前往 Releases](https://github.com/HWZ-ch/HWZ_bili-video-download/releases/latest)（文件名：`HWZ-Bili.exe`）
 
 ![主界面](docs/screenshots/home.png)
 
@@ -34,7 +34,7 @@
 
 ## 快速开始
 
-1. 双击 `HWZ-Bili下载器.exe`。
+1. 双击 `HWZ-Bili.exe`（从 Releases 下载；本地自行构建的文件名为 `HWZ-Bili下载器.exe`）。
 2. 复制一个 B 站视频链接，粘贴到首页输入框（或直接在任意页面按 `Ctrl + V`）。
 3. 应用会自动识别链接并解析；默认会按推荐清晰度自动开始下载。
 4. 想选择分P、清晰度或音频模式时，点击解析结果里的选项即可取消本次自动下载，然后点击「开始下载」。
