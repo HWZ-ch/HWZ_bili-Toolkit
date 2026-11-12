@@ -6,8 +6,8 @@ import sys
 from pathlib import Path
 
 
-APP_NAME = "HWZ Bili 下载器"
-APP_VERSION = "1.0.0"
+APP_NAME = "HWZ Bili 工具箱"
+APP_VERSION = "1.1.0"
 APP_ID = "HWZ-Bili-Downloader"
 ORGANIZATION = "HWZ Studio"
 
@@ -48,6 +48,7 @@ CACHE_DIR = DATA_DIR / "cache"
 IMAGE_CACHE_DIR = CACHE_DIR / "images"
 COVER_CACHE_DIR = CACHE_DIR / "covers"
 TEMP_DIR = CACHE_DIR / "downloads"
+PLAYER_DIR = CACHE_DIR / "player"
 YTDLP_CACHE_DIR = CACHE_DIR / "yt-dlp"
 LOG_DIR = DATA_DIR / "logs"
 SETTINGS_FILE = DATA_DIR / "settings.json"
@@ -56,7 +57,7 @@ ACCOUNT_FILE = DATA_DIR / "account.json"
 COOKIES_FILE = DATA_DIR / "cookies.json"
 COOKIES_NETSCAPE_FILE = DATA_DIR / "cookies.txt"
 
-APP_TITLE = "HWZ Bili下载器"
+APP_TITLE = "HWZ Bili 工具箱"
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -71,6 +72,7 @@ def ensure_runtime_dirs() -> None:
         IMAGE_CACHE_DIR,
         COVER_CACHE_DIR,
         TEMP_DIR,
+        PLAYER_DIR,
         YTDLP_CACHE_DIR,
         LOG_DIR,
     ):

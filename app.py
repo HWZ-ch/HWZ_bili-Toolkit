@@ -397,7 +397,7 @@ def run_desktop(server: ServerController, app: Application, debug: bool = False)
 
 def run_browser(server: ServerController, app: Application, no_window: bool) -> None:
     url = server.url()
-    print(f"HWZ Bili 下载器已启动：{url}", flush=True)
+    print(f"HWZ Bili 工具箱已启动：{url}", flush=True)
     if not no_window:
         try:
             webbrowser.open(url)

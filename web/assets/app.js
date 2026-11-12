@@ -50,6 +50,31 @@
     historyQuery: "",
     historyLoading: false,
     bootedAt: Date.now(),
+    playerCaps: { available: false, target_fps: [60, 120], max_heights: [0, 540, 720, 1080] },
+    player: {
+      source: null,
+      qualityId: "",
+      targetFps: 60,
+      maxHeight: 0,
+      interpolate: true,
+      session: null,
+      sessionId: "",
+      hls: null,
+      pollTimer: null,
+      loadSeq: 0,
+      startTimer: null,
+      attaching: false,
+      starting: false,
+      videoReady: false,
+      status: "idle",
+      error: "",
+      duration: 0,
+      available: 0,
+      buffering: false,
+      pollInFlight: false,
+      pendingRestart: null,
+      controlsTimer: null,
+    },
   };
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -338,6 +363,7 @@
     bindWindowBridge();
     bindCoreEvents();
     bindFeatureEvents();
+    bindPlayerEvents();
 
     if (!state.token) {
       showBootFailure("缺少应用访问令牌，请从桌面应用或启动脚本重新打开。");
@@ -364,6 +390,7 @@
   function hydrateBootstrap(boot) {
     state.settings = { ...state.settings, ...(boot.settings || {}) };
     state.defaults = boot.defaults || {};
+    state.playerCaps = { ...state.playerCaps, ...(boot.player || {}) };
     state.account = boot.account || { is_login: false };
     state.tasks = Array.isArray(boot.tasks) ? boot.tasks : [];
     state.history = Array.isArray(boot.history) ? boot.history : [];
@@ -381,10 +408,11 @@
     updateEngineLabels();
     hideLoginHintsIfLoggedIn();
     bindImageFallbacks();
+    renderPlayerPage();
   }
 
   function updateVersionLabels(app = {}) {
-    const version = app.version || "1.0.0";
+    const version = app.version || "1.1.0";
     $("#version-label").textContent = `v${version}`;
     $("#about-version").textContent = `v${version}`;
   }
@@ -543,9 +571,12 @@
   /* Navigation                                                         */
   /* ------------------------------------------------------------------ */
   function navigate(page) {
-    const allowed = ["home", "downloads", "history", "settings"];
+    const allowed = ["home", "downloads", "player", "history", "settings"];
     if (!allowed.includes(page)) return;
     if (page !== "home") cancelAutoDownload();
+    if (state.page === "player" && page !== "player") {
+      stopPlayer({ silent: true, keepSource: true }).catch(() => {});
+    }
     state.page = page;
     $$(".nav-item").forEach((item) => item.classList.toggle("active", item.dataset.nav === page));
     $$(".page").forEach((section) => section.classList.toggle("active", section.dataset.page === page));
@@ -562,6 +593,8 @@
       renderSettingsForm();
     } else if (page === "home") {
       renderRecent();
+    } else if (page === "player") {
+      renderPlayerPage();
     }
   }
 
@@ -1646,6 +1679,9 @@
               <span class="estimate">预计 <strong>${formatBytes(qualityEstimate())}</strong>${isAudio ? " · 无二次压缩" : " · 含高清音轨"}</span>
             </div>
             <div class="download-actions">
+              <button class="player-open-btn" type="button" data-start-player>
+                ${icon("frame-plus")}插帧播放
+              </button>
               <button class="primary-btn download-btn" type="button" data-start-download>
                 ${icon("download")}开始下载
               </button>
@@ -1770,6 +1806,11 @@
       cancelAutoDownload();
       state.selectedQualityId = qualityButton.dataset.qualityId;
       renderParseResult();
+      return;
+    }
+    const playerButton = event.target.closest("[data-start-player]");
+    if (playerButton) {
+      openPlayerFromParse();
       return;
     }
     const downloadButton = event.target.closest("[data-start-download]");
@@ -2080,6 +2121,948 @@
     } finally {
       state.loginPolling = false;
     }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Realtime interpolation player                                      */
+  /* ------------------------------------------------------------------ */
+  function playerQuality() {
+    const source = state.player.source;
+    if (!source) return null;
+    return (source.qualities || []).find((item) => item.id === state.player.qualityId)
+      || (source.qualities || [])[0]
+      || null;
+  }
+
+  function formatPlayerOutput(session) {
+    if (!session || !session.output_width || !session.output_height) return "--";
+    return `${Number(session.output_width)}×${Number(session.output_height)}`;
+  }
+
+  function formatPlayerClock(value) {
+    const seconds = Math.max(0, Number(value) || 0);
+    return formatDuration(seconds);
+  }
+
+  function playerBufferedAhead() {
+    const video = $("#player-video");
+    if (!video || !video.buffered || video.buffered.length === 0) return 0;
+    try {
+      return Math.max(0, video.buffered.end(video.buffered.length - 1) - video.currentTime);
+    } catch {
+      return 0;
+    }
+  }
+
+  function setPlayerSource(source, qualityId = "") {
+    const p = state.player;
+    const qualities = Array.isArray(source?.qualities) ? source.qualities : [];
+    const quality = qualities.find((item) => item.id === qualityId)
+      || qualities.find((item) => item.id === source?.default_quality_id)
+      || qualities[0]
+      || null;
+    if (p.sessionId) stopPlayer({ silent: true, keepSource: true }).catch(() => {});
+    p.source = source;
+    p.qualityId = quality?.id || "";
+    p.targetFps = 60;
+    p.interpolate = true;
+    p.maxHeight = quality && Number(quality.height) > 1080 ? 1080 : 0;
+    p.session = null;
+    p.sessionId = "";
+    p.error = "";
+    p.status = "idle";
+    p.duration = Number(source?.duration) || 0;
+    p.available = 0;
+    p.videoReady = false;
+    p.starting = false;
+    p.attaching = false;
+    if (source?.source_url) {
+      state.lastParsedUrl = source.source_url;
+      const input = $("#player-url-input");
+      if (input) input.value = source.source_url;
+    }
+    renderPlayerPage();
+  }
+
+  function openPlayerFromParse() {
+    if (!state.parse || state.parseStatus !== "success") {
+      showToast("请先解析一个视频", "在首页粘贴链接后，再点击插帧播放。", "error");
+      return;
+    }
+    cancelAutoDownload();
+    setPlayerSource(state.parse, state.selectedQualityId || state.parse.default_quality_id);
+    navigate("player");
+    window.setTimeout(() => {
+      if (state.page === "player" && state.player.source) startPlayer().catch(() => {});
+    }, 220);
+  }
+
+  async function loadPlayerUrl({ url = "", page = null, autoStart = true } = {}) {
+    const input = $("#player-url-input");
+    const source = String(url || input?.value || "").trim();
+    if (!source) {
+      showToast("请先粘贴视频链接", "支持 BV / av / b23.tv 链接。", "error");
+      input?.focus();
+      return;
+    }
+    if (!looksLikeBili(source)) {
+      showToast("没有识别到 B 站链接", "请粘贴 bilibili.com 视频链接、BV 号或 b23.tv 短链。", "error");
+      input?.focus();
+      return;
+    }
+    const button = $("#player-parse-btn");
+    if (button) {
+      button.disabled = true;
+      button.classList.add("is-loading");
+      const spinner = $(".btn-spinner", button);
+      if (spinner) spinner.hidden = false;
+    }
+    try {
+      const data = await api("/api/parse", {
+        method: "POST",
+        body: { url: source, page: page ?? null },
+        timeout: 120000,
+      });
+      state.parse = data;
+      state.parseStatus = "success";
+      state.selectedQualityId = data.default_quality_id;
+      state.lastParsedUrl = source;
+      const homeInput = $("#url-input");
+      if (homeInput) homeInput.value = source;
+      updateUrlInputUI();
+      renderParseCase();
+      setPlayerSource(data, data.default_quality_id);
+      if (autoStart) await startPlayer();
+    } catch (error) {
+      const normalized = normalizeError(error);
+      showToast("插帧解析失败", normalized.message, "error", 4600);
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.classList.remove("is-loading");
+        const spinner = $(".btn-spinner", button);
+        if (spinner) spinner.hidden = true;
+      }
+    }
+  }
+
+  async function pastePlayerClipboard() {
+    let text = "";
+    try {
+      text = await navigator.clipboard.readText();
+    } catch {
+      try {
+        text = await window.pywebview?.api?.get_clipboard?.() || "";
+      } catch {
+        text = "";
+      }
+    }
+    if (!text.trim()) {
+      showToast("剪贴板是空的", "复制一个 B 站视频链接后再试。", "error");
+      return;
+    }
+    const input = $("#player-url-input");
+    if (input) input.value = text.trim();
+    await loadPlayerUrl({ url: text, autoStart: true });
+  }
+
+  function startPlayerPolling(sequence) {
+    const p = state.player;
+    window.clearInterval(p.pollTimer);
+    p.pollTimer = window.setInterval(() => pollPlayerSession(sequence), 700);
+    pollPlayerSession(sequence);
+  }
+
+  async function pollPlayerSession(sequence) {
+    const p = state.player;
+    if (sequence !== p.loadSeq || !p.sessionId || p.pollInFlight) return;
+    if (p.error) {
+      window.clearInterval(p.pollTimer);
+      p.pollTimer = null;
+      return;
+    }
+    p.pollInFlight = true;
+    try {
+      const data = await api(`/api/player/session/${encodeURIComponent(p.sessionId)}`, { timeout: 15000 });
+      if (sequence !== p.loadSeq) return;
+      const session = data.session;
+      if (!session) return;
+      p.session = session;
+      p.duration = Number(session.duration) || p.duration || 0;
+      p.available = Number(session.available) || 0;
+      if (session.status === "error") {
+        p.error = session.error || session.message || "本地插帧处理失败。";
+        p.status = "error";
+        window.clearInterval(p.pollTimer);
+        p.pollTimer = null;
+        renderPlayerMetrics();
+        renderPlayerOverlay();
+        return;
+      }
+      if (session.ready && !p.hls && !p.attaching) {
+        attachPlayerHls(session, sequence);
+      }
+      if (session.status === "ended") {
+        window.clearInterval(p.pollTimer);
+        p.pollTimer = null;
+      }
+      renderPlayerMetrics();
+      renderPlayerOverlay();
+    } catch (error) {
+      if (sequence !== p.loadSeq) return;
+      console.error("Player status polling failed", error);
+      const normalized = normalizeError(error);
+      p.error = normalized.message;
+      p.status = "error";
+      window.clearInterval(p.pollTimer);
+      p.pollTimer = null;
+      renderPlayerMetrics();
+      renderPlayerOverlay();
+    } finally {
+      p.pollInFlight = false;
+    }
+  }
+
+  function attachPlayerHls(session, sequence) {
+    const p = state.player;
+    const video = $("#player-video");
+    if (!video || p.hls || p.attaching) return;
+    if (!window.Hls || !window.Hls.isSupported()) {
+      p.error = "当前 WebView2 环境不支持 MSE 播放，请更新 Microsoft Edge WebView2 Runtime。";
+      p.status = "error";
+      p.attaching = false;
+      window.clearInterval(p.pollTimer);
+      p.pollTimer = null;
+      renderPlayerMetrics();
+      renderPlayerOverlay();
+      return;
+    }
+    try {
+      p.attaching = true;
+      p.hlsRetries = 0;
+      p.mediaRecovered = false;
+      const hls = new Hls({
+        autoStartLoad: false,
+        startPosition: 0,
+        liveSyncDurationCount: 1,
+        liveMaxLatencyDurationCount: 3600,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        backBufferLength: 120,
+        manifestLoadingMaxRetry: 2,
+        levelLoadingMaxRetry: 2,
+        fragLoadingMaxRetry: 6,
+        xhrSetup: (xhr, url) => {
+          // hls.js invokes xhrSetup before xhr.open(); open it here so the
+          // authentication header can be attached without relying on an
+          // exception-driven retry inside the loader.
+          if (!xhr.readyState) xhr.open("GET", url, true);
+          xhr.setRequestHeader("X-App-Token", state.token);
+        },
+      });
+      p.hls = hls;
+      hls.on(window.Hls.Events.MEDIA_ATTACHED, () => {
+        if (sequence !== p.loadSeq) return;
+        hls.loadSource(session.hls_url);
+      });
+      hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+        if (sequence !== p.loadSeq) return;
+        p.attaching = false;
+        hls.startLoad(0);
+        renderPlayerMetrics();
+        renderPlayerOverlay();
+        tryPlayPlayer();
+      });
+      hls.on(window.Hls.Events.MEDIA_RECOVERED, () => {
+        if (sequence !== p.loadSeq) return;
+        const video = $("#player-video");
+        if (p.recoverAt > 0 && video) {
+          try {
+            video.currentTime = p.recoverAt;
+          } catch {
+            /* ignore */
+          }
+        }
+        p.recoverAt = 0;
+      });
+      hls.on(window.Hls.Events.ERROR, (_event, data) => {
+        if (sequence !== p.loadSeq || !data) return;
+        if (!data.fatal) return;
+        const video = $("#player-video");
+        const resumeAt = Number(video?.currentTime) || 0;
+        if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR && (p.hlsRetries || 0) < 2) {
+          p.hlsRetries = (p.hlsRetries || 0) + 1;
+          window.setTimeout(() => {
+            if (sequence === p.loadSeq && p.hls === hls) {
+              hls.startLoad(resumeAt);
+              if (resumeAt > 0 && video) {
+                try {
+                  video.currentTime = resumeAt;
+                } catch {
+                  /* ignore */
+                }
+              }
+            }
+          }, 700);
+          return;
+        }
+        if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR && !p.mediaRecovered) {
+          p.mediaRecovered = true;
+          p.recoverAt = resumeAt;
+          hls.recoverMediaError();
+          return;
+        }
+        p.error = data.type === window.Hls.ErrorTypes.NETWORK_ERROR
+          ? "本地插帧流加载失败，请重试。"
+          : "视频流无法解码，请尝试其他清晰度。";
+        p.status = "error";
+        p.attaching = false;
+        window.clearInterval(p.pollTimer);
+        p.pollTimer = null;
+        renderPlayerMetrics();
+        renderPlayerOverlay();
+      });
+      hls.attachMedia(video);
+    } catch (error) {
+      console.error("Player HLS attach failed", error);
+      p.attaching = false;
+      p.error = "播放器初始化失败，请重试。";
+      p.status = "error";
+      window.clearInterval(p.pollTimer);
+      p.pollTimer = null;
+      renderPlayerMetrics();
+      renderPlayerOverlay();
+    }
+  }
+
+  function tryPlayPlayer() {
+    const video = $("#player-video");
+    if (!video) return;
+    const promise = video.play();
+    if (promise && typeof promise.catch === "function") {
+      promise.catch(() => {
+        renderPlayerOverlay();
+      });
+    }
+  }
+
+  async function startPlayer() {
+    const p = state.player;
+    if (!p.source) {
+      showToast("请先解析一个视频", "粘贴 B 站链接后再开始插帧播放。", "error");
+      return;
+    }
+    if (!state.playerCaps.available) {
+      showToast("插帧引擎不可用", "未找到 FFmpeg，请重新安装完整版本。", "error", 4600);
+      return;
+    }
+    const quality = playerQuality();
+    if (!quality) {
+      showToast("请选择清晰度", "", "error");
+      return;
+    }
+    if (Number(p.targetFps) >= 120 && (!p.maxHeight || Number(p.maxHeight) > 720)) {
+      p.maxHeight = 720;
+      renderPlayerPage();
+      showToast("120fps 建议使用 720P", "已自动切换输出分辨率，避免生成速度跟不上播放。", "info", 4200);
+    }
+    window.clearTimeout(p.startTimer);
+    await stopPlayer({ silent: true, keepSource: true });
+    const sequence = ++p.loadSeq;
+    p.starting = true;
+    p.error = "";
+    p.status = "preparing";
+    p.session = null;
+    p.sessionId = "";
+    p.videoReady = false;
+    p.buffering = false;
+    p.duration = Number(p.source.duration) || 0;
+    p.available = 0;
+    renderPlayerPage();
+    try {
+      const data = await api("/api/player/session", {
+        method: "POST",
+        timeout: 30000,
+        body: {
+          parse_id: p.source.parse_id,
+          quality_id: quality.id,
+          target_fps: p.targetFps,
+          max_height: p.maxHeight,
+          interpolate: p.interpolate,
+        },
+      });
+      if (sequence !== p.loadSeq) {
+        if (data.session?.id) {
+          api(`/api/player/session/${encodeURIComponent(data.session.id)}/stop`, {
+            method: "POST", body: {}, timeout: 10000,
+          }).catch(() => {});
+        }
+        return;
+      }
+      p.session = data.session;
+      p.sessionId = data.session?.id || "";
+      p.starting = false;
+      p.status = data.session?.status || "preparing";
+      p.available = Number(data.session?.available) || 0;
+      renderPlayerPage();
+      if (p.sessionId) startPlayerPolling(sequence);
+    } catch (error) {
+      if (sequence !== p.loadSeq) return;
+      p.starting = false;
+      p.error = normalizeError(error).message;
+      p.status = "error";
+      renderPlayerPage();
+    }
+  }
+
+  async function stopPlayer({ silent = false, keepSource = true } = {}) {
+    const p = state.player;
+    p.loadSeq += 1;
+    window.clearInterval(p.pollTimer);
+    window.clearTimeout(p.startTimer);
+    p.pollTimer = null;
+    p.startTimer = null;
+    const sessionId = p.sessionId;
+    if (p.hls) {
+      try {
+        p.hls.destroy();
+      } catch {
+        /* ignore */
+      }
+      p.hls = null;
+    }
+    p.session = null;
+    p.sessionId = "";
+    p.available = 0;
+    p.duration = keepSource ? Number(p.source?.duration) || 0 : 0;
+    p.starting = false;
+    p.attaching = false;
+    p.videoReady = false;
+    p.buffering = false;
+    p.status = "idle";
+    p.error = "";
+    if (!keepSource) {
+      p.source = null;
+      p.qualityId = "";
+    }
+    const video = $("#player-video");
+    if (video) {
+      try {
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+      } catch {
+        /* ignore */
+      }
+    }
+    renderPlayerPage();
+    if (sessionId) {
+      try {
+        await api(`/api/player/session/${encodeURIComponent(sessionId)}/stop`, {
+          method: "POST", body: {}, timeout: 10000,
+        });
+      } catch {
+        /* the session may already have ended */
+      }
+    }
+    if (!silent) showToast("已停止插帧播放", keepSource ? "可以修改设置后重新开始。" : "", "info");
+  }
+
+  function schedulePlayerRestart() {
+    const p = state.player;
+    if (!p.sessionId && !p.starting) return;
+    window.clearTimeout(p.startTimer);
+    p.startTimer = window.setTimeout(() => {
+      if (state.page === "player" && p.source) startPlayer().catch(() => {});
+    }, 380);
+  }
+
+  function renderPlayerPage() {
+    const p = state.player;
+    if (!$("#page-player")) return;
+    const source = p.source;
+    const quality = playerQuality();
+    const sourceStrip = $("#player-source-strip");
+    const input = $("#player-url-input");
+    if (input && !input.value && source?.source_url) input.value = source.source_url;
+    if (sourceStrip) sourceStrip.hidden = !source;
+
+    if (source) {
+      $("#player-source-title").textContent = source.title || "B站视频";
+      const pageText = Number(source.page_count) > 1 ? `P${Number(source.page) || 1} · ` : "";
+      const durationText = source.duration ? formatDuration(source.duration) : "--:--";
+      $("#player-source-sub").textContent = `${source.uploader?.name || "未知UP主"} · ${pageText}${durationText} · ${source.bvid || ""}`;
+      const cover = $("#player-source-cover");
+      if (cover) {
+        cover.innerHTML = source.cover
+          ? `<img src="${escapeHtml(imageUrl(source.cover))}" alt="" data-fallback>`
+          : icon("film");
+        bindImageFallbacks(cover);
+      }
+      const pageField = $("#player-page-field");
+      const pageSelect = $("#player-page-select");
+      if (pageField && pageSelect) {
+        const pages = Array.isArray(source.pages) ? source.pages : [];
+        pageField.hidden = pages.length <= 1;
+        if (pages.length > 1) {
+          pageSelect.innerHTML = pages.map((page) => `
+            <option value="${Number(page.page)}" ${Number(page.page) === Number(source.page) ? "selected" : ""}>
+              P${Number(page.page)} · ${escapeHtml(page.title || "")}
+            </option>`).join("");
+        }
+      }
+      $("#player-now-title").textContent = source.title || "等待选择视频";
+    } else {
+      $("#player-source-title").textContent = "B站视频";
+      $("#player-source-sub").textContent = "等待解析";
+      $("#player-source-cover").innerHTML = icon("film");
+      $("#player-page-field").hidden = true;
+      $("#player-now-title").textContent = "等待选择视频";
+    }
+
+    const qualitySelect = $("#player-quality");
+    if (qualitySelect) {
+      if (source) {
+        qualitySelect.innerHTML = (source.qualities || []).map((item) => `
+          <option value="${escapeHtml(item.id)}">${escapeHtml(item.label)} · ${Number(item.fps) || 0}fps · ${escapeHtml(item.codec || "")}</option>
+        `).join("");
+        qualitySelect.value = quality?.id || "";
+      } else {
+        qualitySelect.innerHTML = `<option value="">请先解析视频</option>`;
+        qualitySelect.value = "";
+      }
+      qualitySelect.disabled = !source || p.starting;
+    }
+
+    const fpsHint = $("#player-fps-hint");
+    if (fpsHint) {
+      const sourceFps = Number(quality?.fps) || Number(p.session?.source_fps) || 0;
+      if (!source) fpsHint.textContent = "源视频 --";
+      else if (sourceFps >= 55) fpsHint.textContent = `源已 ${Math.round(sourceFps)}fps`;
+      else if (Number(p.targetFps) >= 120) fpsHint.textContent = `源视频 ${sourceFps || "--"}fps · 120fps 建议 720P`;
+      else fpsHint.textContent = `源视频 ${sourceFps || "--"}fps`;
+    }
+    const interpolate = $("#player-interpolate");
+    if (interpolate) interpolate.checked = Boolean(p.interpolate);
+    const fpsField = $("#player-fps-field");
+    if (fpsField) fpsField.classList.toggle("is-disabled", !p.interpolate);
+    $$("#player-fps-options [data-player-fps]").forEach((button) => {
+      const value = Number(button.dataset.playerFps);
+      button.classList.toggle("active", value === Number(p.targetFps));
+      button.disabled = !source || !p.interpolate || p.starting;
+    });
+    $$("#player-res-options [data-player-height]").forEach((button) => {
+      const value = Number(button.dataset.playerHeight);
+      button.classList.toggle("active", value === Number(p.maxHeight));
+      button.disabled = !source || p.starting;
+    });
+
+    const startButton = $("#player-start-btn");
+    if (startButton) {
+      const busy = Boolean(p.sessionId) || p.starting;
+      startButton.disabled = !source || p.starting || !state.playerCaps.available;
+      startButton.innerHTML = p.starting
+        ? `<span class="spinner"></span><span>正在准备…</span>`
+        : busy
+          ? `${icon("refresh")}<span>重新生成</span>`
+          : !state.playerCaps.available
+            ? `${icon("alert")}<span>FFmpeg 不可用</span>`
+            : `${icon("play")}<span>开始插帧播放</span>`;
+    }
+    const stopButton = $("#player-stop-btn");
+    if (stopButton) stopButton.hidden = !p.sessionId && !p.starting;
+    renderPlayerMetrics();
+    renderPlayerOverlay();
+  }
+
+  function renderPlayerMetrics() {
+    const p = state.player;
+    const session = p.session;
+    const speed = Number(session?.speed) || 0;
+    const available = Number(p.available) || Number(session?.available) || 0;
+    const duration = Number(p.duration) || Number(session?.duration) || 0;
+    const quality = playerQuality();
+    const sourceFps = Number(session?.source_fps) || Number(quality?.fps) || 0;
+    const targetFps = Number(session?.target_fps) || Number(p.targetFps) || 60;
+    const effectiveTarget = session?.interpolated === false ? sourceFps : targetFps;
+    const output = formatPlayerOutput(session);
+    const buffered = playerBufferedAhead();
+    const progress = duration > 0 ? Math.min(1, available / duration) : 0;
+
+    const speedNode = $("#player-speed");
+    if (speedNode) speedNode.textContent = speed > 0 ? `${speed.toFixed(1)}×` : "--";
+    const generatedNode = $("#player-generated");
+    if (generatedNode) generatedNode.textContent = available > 0 ? formatPlayerClock(available) : "0:00";
+    const outputNode = $("#player-output");
+    if (outputNode) outputNode.textContent = output;
+    const bufferedNode = $("#player-buffered");
+    if (bufferedNode) bufferedNode.textContent = `${Math.max(0, Math.round(buffered))}s`;
+    const bufferLabel = $("#player-buffer-label");
+    if (bufferLabel) bufferLabel.textContent = `缓冲 ${Math.max(0, Math.round(buffered))}s`;
+    const progressFill = $("#player-progress-fill");
+    if (progressFill) progressFill.style.width = `${progress * 100}%`;
+    const loadingFill = $("#player-loading-fill");
+    if (loadingFill) loadingFill.style.width = `${Math.max(0, Math.min(100, progress * 100))}%`;
+
+    const stageFps = $("#player-stage-fps");
+    if (stageFps) stageFps.textContent = `${Math.round(sourceFps) || "--"} → ${Math.round(effectiveTarget) || "--"} FPS`;
+    const stageQuality = $("#player-stage-quality");
+    if (stageQuality) stageQuality.textContent = quality?.short_label || quality?.label || "";
+    const liveLabel = $("#player-live-label");
+    if (liveLabel) liveLabel.textContent = session?.interpolated === false ? "原始帧率" : "实时插帧";
+
+    const statusText = $("#player-status-text");
+    const statusDot = $("#player-status-dot");
+    let text = "等待开始";
+    let dotClass = "";
+    if (p.error) {
+      text = p.error;
+      dotClass = "is-error";
+    } else if (p.starting || (p.sessionId && !p.hls)) {
+      text = session?.message || "正在生成首批画面…";
+      dotClass = "is-busy";
+    } else if (p.hls && p.videoReady) {
+      if (p.buffering) {
+        text = "缓冲中，正在等待下一段画面…";
+        dotClass = "is-busy";
+      } else if (p.status === "ended") {
+        text = "播放完成 · 拖动进度条可回看";
+        dotClass = "is-live";
+      } else {
+        text = speed > 0 && speed < 0.9
+          ? `实时生成中 · ${speed.toFixed(1)}×，可能缓冲`
+          : `实时生成中 · ${Math.round(effectiveTarget)} FPS`;
+        dotClass = "is-live";
+      }
+    } else if (p.sessionId) {
+      text = session?.message || "正在连接本地视频流…";
+      dotClass = "is-busy";
+    }
+    if (statusText) statusText.textContent = text;
+    if (statusDot) {
+      statusDot.classList.remove("is-live", "is-busy", "is-error");
+      if (dotClass) statusDot.classList.add(dotClass);
+    }
+    updatePlayerProgressUI();
+  }
+
+  function renderPlayerOverlay() {
+    const p = state.player;
+    const stage = $("#player-stage");
+    const video = $("#player-video");
+    if (!stage || !video) return;
+    const hasSession = Boolean(p.sessionId);
+    const hasHls = Boolean(p.hls);
+    const videoReady = Boolean(p.videoReady);
+    const idle = $("#player-idle");
+    const loading = $("#player-loading");
+    const errorBox = $("#player-error");
+    const controls = $("#player-controls");
+    const top = $("#player-stage-top");
+    const center = $("#player-center-play");
+
+    if (idle) idle.hidden = Boolean(hasSession || p.starting || p.error);
+    if (errorBox) errorBox.hidden = !p.error;
+    const showLoading = !p.error && (p.starting || (hasSession && (!hasHls || !videoReady)));
+    if (loading) loading.hidden = !showLoading;
+    if (p.error) $("#player-error-text").textContent = p.error;
+    stage.classList.toggle("has-video", hasHls && videoReady);
+    stage.classList.toggle("is-playing", hasHls && videoReady && !video.paused);
+    if (controls) controls.hidden = !(hasHls && videoReady);
+    if (top) top.hidden = !hasSession;
+    if (center) center.hidden = !(hasHls && videoReady && video.paused && !p.error);
+    const loadingTitle = $("#player-loading-title");
+    if (loadingTitle) {
+      loadingTitle.textContent = p.starting
+        ? "正在准备插帧流"
+        : hasHls && !videoReady
+          ? "正在缓冲首帧"
+          : "正在生成首批画面";
+    }
+    const loadingText = $("#player-loading-text");
+    if (loadingText) {
+      const target = p.interpolate ? `${Number(p.targetFps) || 60}fps` : "原始帧率";
+      loadingText.textContent = p.session?.message || `正在连接视频线路并生成本地 ${target} 画面…`;
+    }
+    const loadingNote = $("#player-loading-note");
+    if (loadingNote) {
+      loadingNote.textContent = p.session?.speed
+        ? `本地生成速度 ${Number(p.session.speed).toFixed(1)}× · 已缓冲 ${formatPlayerClock(p.available)}`
+        : "先缓冲几秒，播放会更稳定";
+    }
+  }
+
+  function updatePlayerProgressUI() {
+    const p = state.player;
+    const video = $("#player-video");
+    if (!video) return;
+    const duration = Number(p.duration) || (Number.isFinite(video.duration) ? video.duration : 0);
+    const current = Math.max(0, Number(video.currentTime) || 0);
+    const seek = $("#player-seek");
+    if (seek && !p.seeking) {
+      seek.max = String(Math.max(1, duration || 1));
+      seek.value = String(Math.min(current, Number(seek.max)));
+      const percent = duration > 0 ? Math.min(100, (current / duration) * 100) : 0;
+      seek.style.setProperty("--seek-progress", `${percent}%`);
+    }
+    const time = $("#player-time");
+    if (time) time.textContent = `${formatPlayerClock(current)} / ${formatPlayerClock(duration)}`;
+  }
+
+  function seekPlayer(value) {
+    const p = state.player;
+    const video = $("#player-video");
+    if (!video || !p.sessionId) return;
+    let target = Math.max(0, Math.min(Number(value) || 0, Number(p.duration) || 0));
+    if (p.status !== "ended" && target > Math.max(0, p.available - 0.4)) {
+      target = Math.max(0, p.available - 0.55);
+      const now = Date.now();
+      if (!p.lastSeekToast || now - p.lastSeekToast > 3000) {
+        p.lastSeekToast = now;
+        showToast("该位置还在生成中", "已跳到目前生成到的最新画面。", "info", 2600);
+      }
+    }
+    try {
+      video.currentTime = target;
+      updatePlayerProgressUI();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function togglePlayerPlayback() {
+    const p = state.player;
+    const video = $("#player-video");
+    if (!video || !p.sessionId) return;
+    if (video.paused) {
+      if (p.status === "ended" && Number(p.duration) > 0) {
+        try { video.currentTime = 0; } catch { /* ignore */ }
+      }
+      tryPlayPlayer();
+    } else {
+      video.pause();
+    }
+  }
+
+  async function togglePlayerFullscreen() {
+    const stage = $("#player-stage");
+    if (!stage) return;
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await stage.requestFullscreen();
+    } catch {
+      showToast("无法进入全屏", "当前窗口环境不支持全屏播放。", "error");
+    }
+  }
+
+  function bindPlayerVideoEvents() {
+    const video = $("#player-video");
+    if (!video || video.dataset.playerBound) return;
+    video.dataset.playerBound = "1";
+    video.addEventListener("loadedmetadata", () => {
+      const p = state.player;
+      p.videoReady = true;
+      p.attaching = false;
+      if (!p.duration && Number.isFinite(video.duration)) p.duration = video.duration;
+      renderPlayerOverlay();
+      renderPlayerMetrics();
+      tryPlayPlayer();
+    });
+    video.addEventListener("playing", () => {
+      const p = state.player;
+      p.videoReady = true;
+      p.starting = false;
+      p.buffering = false;
+      p.status = p.status === "ended" ? "ended" : "playing";
+      renderPlayerOverlay();
+      renderPlayerMetrics();
+      schedulePlayerControlsHide();
+    });
+    video.addEventListener("pause", () => {
+      renderPlayerOverlay();
+      showPlayerControls();
+    });
+    video.addEventListener("waiting", () => {
+      state.player.buffering = true;
+      renderPlayerMetrics();
+    });
+    video.addEventListener("canplay", () => {
+      state.player.buffering = false;
+      renderPlayerMetrics();
+    });
+    video.addEventListener("timeupdate", () => {
+      if (!state.player.seeking) updatePlayerProgressUI();
+      renderPlayerMetrics();
+    });
+    video.addEventListener("progress", () => renderPlayerMetrics());
+    video.addEventListener("ended", () => {
+      const p = state.player;
+      p.status = "ended";
+      renderPlayerOverlay();
+      renderPlayerMetrics();
+      showPlayerControls();
+    });
+    video.addEventListener("click", () => togglePlayerPlayback());
+    video.addEventListener("dblclick", () => togglePlayerFullscreen());
+    video.addEventListener("volumechange", syncPlayerVolume);
+  }
+
+  function showPlayerControls() {
+    const stage = $("#player-stage");
+    if (!stage) return;
+    stage.classList.remove("is-controls-hidden");
+    window.clearTimeout(state.player.controlsTimer);
+    state.player.controlsTimer = window.setTimeout(() => {
+      const video = $("#player-video");
+      if (video && !video.paused) stage.classList.add("is-controls-hidden");
+    }, 2400);
+  }
+
+  function schedulePlayerControlsHide() {
+    showPlayerControls();
+  }
+
+  function syncPlayerVolume() {
+    const video = $("#player-video");
+    const volume = $("#player-volume");
+    const wrap = $(".player-volume");
+    if (!video) return;
+    if (volume) volume.value = String(video.muted ? 0 : video.volume);
+    wrap?.classList.toggle("is-muted", video.muted || video.volume === 0);
+  }
+
+  function bindPlayerEvents() {
+    $("#player-url-form")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      loadPlayerUrl({ autoStart: true }).catch(() => {});
+    });
+    $("#player-paste-btn")?.addEventListener("click", () => {
+      pastePlayerClipboard().catch(() => {});
+    });
+    $("#player-source-clear")?.addEventListener("click", () => {
+      stopPlayer({ silent: true, keepSource: false }).catch(() => {});
+      const input = $("#player-url-input");
+      if (input) {
+        input.value = "";
+        input.focus();
+      }
+      renderPlayerPage();
+    });
+    $("#player-quality")?.addEventListener("change", (event) => {
+      const p = state.player;
+      p.qualityId = event.target.value;
+      const quality = playerQuality();
+      if (quality && Number(quality.height) > 1080 && !p.maxHeight) p.maxHeight = 1080;
+      renderPlayerPage();
+      schedulePlayerRestart();
+    });
+    $("#player-interpolate")?.addEventListener("change", (event) => {
+      state.player.interpolate = Boolean(event.target.checked);
+      renderPlayerPage();
+      schedulePlayerRestart();
+    });
+    $("#player-fps-options")?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-player-fps]");
+      if (!button || button.disabled) return;
+      state.player.targetFps = Number(button.dataset.playerFps) || 60;
+      renderPlayerPage();
+      schedulePlayerRestart();
+    });
+    $("#player-res-options")?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-player-height]");
+      if (!button || button.disabled) return;
+      state.player.maxHeight = Number(button.dataset.playerHeight) || 0;
+      renderPlayerPage();
+      schedulePlayerRestart();
+    });
+    $("#player-page-select")?.addEventListener("change", (event) => {
+      const page = Number(event.target.value) || 1;
+      const source = state.player.source?.source_url || state.lastParsedUrl;
+      if (!source) return;
+      loadPlayerUrl({ url: source, page, autoStart: true }).catch(() => {});
+    });
+    $("#player-start-btn")?.addEventListener("click", () => startPlayer().catch(() => {}));
+    $("#player-stop-btn")?.addEventListener("click", () => stopPlayer({ silent: false, keepSource: true }).catch(() => {}));
+    $("#player-error-retry")?.addEventListener("click", () => startPlayer().catch(() => {}));
+    $("#player-error-close")?.addEventListener("click", () => {
+      state.player.error = "";
+      stopPlayer({ silent: true, keepSource: true }).catch(() => {});
+    });
+    $("#player-play-btn")?.addEventListener("click", togglePlayerPlayback);
+    $("#player-center-play")?.addEventListener("click", togglePlayerPlayback);
+    $("#player-fullscreen-btn")?.addEventListener("click", () => togglePlayerFullscreen().catch(() => {}));
+    $("#player-mute-btn")?.addEventListener("click", () => {
+      const video = $("#player-video");
+      if (!video) return;
+      video.muted = !video.muted;
+      syncPlayerVolume();
+    });
+    $("#player-volume")?.addEventListener("input", (event) => {
+      const video = $("#player-video");
+      if (!video) return;
+      video.volume = Math.max(0, Math.min(1, Number(event.target.value) || 0));
+      video.muted = video.volume === 0;
+      syncPlayerVolume();
+    });
+    const seek = $("#player-seek");
+    if (seek) {
+      seek.addEventListener("input", () => {
+        state.player.seeking = true;
+        const duration = Number(state.player.duration) || 0;
+        const current = Number(seek.value) || 0;
+        const time = $("#player-time");
+        if (time) time.textContent = `${formatPlayerClock(current)} / ${formatPlayerClock(duration)}`;
+        const percent = duration > 0 ? Math.min(100, (current / duration) * 100) : 0;
+        seek.style.setProperty("--seek-progress", `${percent}%`);
+      });
+      seek.addEventListener("change", () => {
+        state.player.seeking = false;
+        seekPlayer(Number(seek.value));
+      });
+    }
+    const stage = $("#player-stage");
+    stage?.addEventListener("mousemove", showPlayerControls);
+    stage?.addEventListener("mouseleave", () => {
+      const video = $("#player-video");
+      if (video && !video.paused) stage.classList.add("is-controls-hidden");
+    });
+    bindPlayerVideoEvents();
+    document.addEventListener("keydown", (event) => {
+      if (state.page !== "player") return;
+      const target = event.target;
+      if (target instanceof HTMLElement && target.closest("input, textarea, select, button, [contenteditable='true']")) return;
+      if (event.code === "Space") {
+        event.preventDefault();
+        togglePlayerPlayback();
+      } else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        const video = $("#player-video");
+        if (!video || !state.player.sessionId) return;
+        event.preventDefault();
+        seekPlayer((Number(video.currentTime) || 0) + (event.key === "ArrowRight" ? 5 : -5));
+      } else if (event.key.toLowerCase() === "f") {
+        togglePlayerFullscreen().catch(() => {});
+      }
+      showPlayerControls();
+    });
+    window.addEventListener("pagehide", () => {
+      const id = state.player.sessionId;
+      if (!id) return;
+      try {
+        fetch(`/api/player/session/${encodeURIComponent(id)}/stop`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-App-Token": state.token },
+          body: "{}",
+          keepalive: true,
+        }).catch(() => {});
+      } catch {
+        /* ignore */
+      }
+    });
+    document.addEventListener("fullscreenchange", () => {
+      const stage = $("#player-stage");
+      if (!stage) return;
+      stage.classList.toggle("is-fullscreen", Boolean(document.fullscreenElement));
+    });
   }
 
   /* ------------------------------------------------------------------ */

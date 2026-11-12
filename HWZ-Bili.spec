@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller build definition for HWZ Bili Downloader."""
+"""PyInstaller build definition for HWZ Bili Toolkit."""
 
 from PyInstaller.utils.hooks import collect_all, collect_data_files
 
@@ -65,7 +65,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="HWZ-Bili下载器",
+    name="HWZ-Bili-Toolkit",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

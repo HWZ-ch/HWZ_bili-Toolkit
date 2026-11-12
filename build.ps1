@@ -1,4 +1,4 @@
-# Build and package HWZ Bili Downloader with PyInstaller.
+# Build and package HWZ Bili Toolkit with PyInstaller.
 # Run from the repository root:
 #   powershell -ExecutionPolicy Bypass -File .\build.ps1
 # Set $env:PYTHON to an explicit Python executable if "python" is not on PATH.

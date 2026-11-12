@@ -4,13 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>HWZ Bili 下载器</title>
+  <title>HWZ Bili 工具箱</title>
   <link rel="icon" href="assets/favicon.ico">
   <script src="assets/theme-init.js?v=__ASSET_VERSION__"></script>
   <link rel="stylesheet" href="assets/styles.css?v=__ASSET_VERSION__">
   <link rel="stylesheet" href="assets/components.css?v=__ASSET_VERSION__">
   <link rel="stylesheet" href="assets/panels.css?v=__ASSET_VERSION__">
   <link rel="stylesheet" href="assets/polish.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="assets/player.css?v=__ASSET_VERSION__">
 </head>
 <body>
   <svg class="svg-sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -66,6 +67,30 @@
     <symbol id="i-pause" viewBox="0 0 24 24">
       <rect x="6.6" y="5" width="3.8" height="14" rx="1.5" fill="currentColor"/>
       <rect x="13.6" y="5" width="3.8" height="14" rx="1.5" fill="currentColor"/>
+    </symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24">
+      <rect x="6.5" y="6.5" width="11" height="11" rx="2.2" fill="currentColor"/>
+    </symbol>
+    <symbol id="i-fullscreen" viewBox="0 0 24 24">
+      <path d="M8.5 4H4v4.5M15.5 4H20v4.5M8.5 20H4v-4.5M15.5 20H20v-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-volume" viewBox="0 0 24 24">
+      <path d="M4 9.3v5.4h3.6l4.5 3.7V5.6L7.6 9.3H4Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="M15.5 9.1a4.2 4.2 0 0 1 0 5.8M18.2 6.6a7.7 7.7 0 0 1 0 10.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-volume-off" viewBox="0 0 24 24">
+      <path d="M4 9.3v5.4h3.6l4.5 3.7V5.6L7.6 9.3H4Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="m15.4 9.7 4.6 4.6m0-4.6-4.6 4.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24">
+      <path d="M4 7h7M15 7h5M4 17h3M11 17h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      <circle cx="13" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <circle cx="9" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    </symbol>
+    <symbol id="i-frame-plus" viewBox="0 0 24 24">
+      <rect x="3.2" y="5.2" width="13.2" height="10.4" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.7"/>
+      <path d="M7 19.2h11.8a2 2 0 0 0 2-2V9.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      <path d="M9.8 8.6v3.6M8 10.4h3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
     </symbol>
     <symbol id="i-folder" viewBox="0 0 24 24">
       <path d="M3.7 7.4a2 2 0 0 1 2-2h3.1l2 2.2h6.8a2 2 0 0 1 2 2v7.7a2 2 0 0 1-2 2H5.7a2 2 0 0 1-2-2V7.4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -172,7 +197,7 @@
         </span>
         <span class="brand-name">HWZ</span>
         <span class="brand-separator"></span>
-        <span class="brand-sub">Bili 下载器</span>
+        <span class="brand-sub">Bili 工具箱</span>
       </div>
       <div class="titlebar-center">
         <span class="titlebar-status"><span class="status-dot"></span>本地运行 · 极速引擎</span>
@@ -204,6 +229,12 @@
               <span class="nav-icon"><svg class="icon"><use href="#i-download"></use></svg></span>
               <span class="nav-text">下载中心</span>
               <span class="nav-badge" id="nav-task-badge" hidden>0</span>
+              <span class="nav-glow"></span>
+            </button>
+            <button class="nav-item" type="button" data-nav="player" aria-label="插帧播放">
+              <span class="nav-icon"><svg class="icon"><use href="#i-frame-plus"></use></svg></span>
+              <span class="nav-text">插帧播放</span>
+              <span class="nav-badge nav-badge-new">NEW</span>
               <span class="nav-glow"></span>
             </button>
             <button class="nav-item" type="button" data-nav="history" aria-label="下载记录">
@@ -248,7 +279,7 @@
             <span class="account-arrow"><svg class="icon"><use href="#i-arrow-right"></use></svg></span>
           </button>
 
-          <div class="sidebar-version"><span>HWZ Bili Downloader</span><span id="version-label">v1.0.0</span></div>
+          <div class="sidebar-version"><span>HWZ Bili Toolkit</span><span id="version-label">v1.1.0</span></div>
         </div>
       </aside>
 
@@ -273,9 +304,9 @@
           <section class="hero">
             <div class="hero-grid-bg"></div>
             <div class="hero-copy">
-              <div class="hero-kicker"><span class="kicker-spark"><svg class="icon"><use href="#i-sparkles"></use></svg></span>BILIBILI DOWNLOADER</div>
+              <div class="hero-kicker"><span class="kicker-spark"><svg class="icon"><use href="#i-sparkles"></use></svg></span>BILIBILI TOOLKIT</div>
               <h2>把喜欢的视频，<br><span class="hero-highlight">留在本地。</span></h2>
-              <p class="hero-sub">粘贴链接，自动解析清晰度、封面与分P信息。多线程下载，音画无损合并。</p>
+              <p class="hero-sub">粘贴链接，自动解析清晰度、封面与分P信息。多线程下载，或在本机实时插帧播放。</p>
 
               <form class="url-bar" id="url-form" autocomplete="off">
                 <svg class="icon url-leading"><use href="#i-link"></use></svg>
@@ -297,6 +328,7 @@
               <div class="hero-hints">
                 <span><svg class="icon"><use href="#i-check-circle"></use></svg>支持 BV / av / b23.tv</span>
                 <span><svg class="icon"><use href="#i-bolt"></use></svg><span class="hint-connections">12</span> 线程极速下载</span>
+                <button type="button" class="login-hint" data-nav="player">60fps 实时插帧 <svg class="icon"><use href="#i-arrow-up-right"></use></svg></button>
                 <button type="button" class="login-hint" id="login-hint">登录解锁 4K 画质 <svg class="icon"><use href="#i-arrow-up-right"></use></svg></button>
               </div>
             </div>
@@ -340,7 +372,7 @@
 
           <footer class="page-footnote">
             <svg class="icon"><use href="#i-shield"></use></svg>
-            <span>所有解析与下载均在本机完成，Cookie 仅保存在本机。请仅用于个人学习与收藏，尊重 UP 主版权。</span>
+            <span>所有解析、下载与插帧均在本机完成，Cookie 仅保存在本机。请仅用于个人学习与收藏，尊重 UP 主版权。</span>
           </footer>
         </section>
 
@@ -400,6 +432,232 @@
               <div><strong>本地安全处理</strong><p>解析、下载和登录 Cookie 都只留在你的电脑里。</p></div>
             </div>
           </section>
+        </section>
+
+        <section class="page" data-page="player" id="page-player">
+          <div class="page-header player-page-header">
+            <div>
+              <div class="eyebrow"><span class="eyebrow-dot"></span>LOCAL FRAME INTERPOLATION</div>
+              <h1 class="page-title">实时插帧播放</h1>
+              <p class="page-subtitle">把 24 / 30 帧的 B 站视频，实时变成 60 帧顺滑画面。所有处理都在本机完成，不修改原视频。</p>
+            </div>
+            <div class="player-header-chips">
+              <span class="player-head-chip"><span class="status-dot"></span>本地 FFmpeg</span>
+              <span class="player-head-chip"><svg class="icon"><use href="#i-shield"></use></svg>关闭即清理</span>
+            </div>
+          </div>
+
+          <section class="player-launch-card" aria-label="选择插帧视频">
+            <div class="player-launch-copy">
+              <span class="player-launch-icon"><svg class="icon"><use href="#i-frame-plus"></use></svg></span>
+              <div>
+                <strong>粘贴链接，边生成边播放</strong>
+                <small>解析后会在本机实时生成 60fps 临时流，无需等待整段视频处理完成。</small>
+              </div>
+            </div>
+            <form class="player-url-bar" id="player-url-form" autocomplete="off">
+              <svg class="icon player-url-leading"><use href="#i-link"></use></svg>
+              <input id="player-url-input" name="url" type="text" inputmode="url" spellcheck="false"
+                     placeholder="粘贴 B 站视频链接、BV 号或 b23.tv 短链" aria-label="插帧播放链接">
+              <button class="player-paste-btn" id="player-paste-btn" type="button">
+                <svg class="icon"><use href="#i-clipboard"></use></svg>粘贴
+              </button>
+              <button class="primary-btn player-parse-btn" id="player-parse-btn" type="submit">
+                <span class="btn-label">解析并播放</span>
+                <svg class="icon"><use href="#i-arrow-right"></use></svg>
+                <span class="btn-spinner" hidden></span>
+              </button>
+            </form>
+          </section>
+
+          <div class="player-source-strip" id="player-source-strip" hidden>
+            <div class="player-source-cover" id="player-source-cover"></div>
+            <div class="player-source-copy">
+              <strong id="player-source-title">B站视频</strong>
+              <span id="player-source-sub">等待解析</span>
+            </div>
+            <div class="player-source-tools">
+              <label class="player-page-field" id="player-page-field" hidden>
+                <span>分P</span>
+                <select id="player-page-select" aria-label="选择分P"></select>
+              </label>
+              <button class="player-ghost-btn" id="player-source-clear" type="button">
+                <svg class="icon"><use href="#i-refresh"></use></svg>换一个
+              </button>
+            </div>
+          </div>
+
+          <div class="player-layout">
+            <div class="player-main">
+              <div class="player-stage" id="player-stage">
+                <video id="player-video" playsinline preload="metadata"></video>
+                <span class="player-stage-glow"></span>
+
+                <div class="player-idle" id="player-idle">
+                  <div class="player-idle-visual" aria-hidden="true">
+                    <span class="player-frame-card player-frame-card-a">24<small>FPS</small></span>
+                    <span class="player-frame-flow"><i></i><i></i><i></i></span>
+                    <span class="player-frame-card player-frame-card-b">60<small>FPS</small></span>
+                    <span class="player-frame-orbit"></span>
+                  </div>
+                  <h2>让每一帧都更顺滑</h2>
+                  <p>粘贴一个 B 站视频，应用会在播放的同时生成中间帧。画面更连贯，动作更跟手。</p>
+                  <div class="player-idle-points">
+                    <span><svg class="icon"><use href="#i-check"></use></svg>本地实时处理</span>
+                    <span><svg class="icon"><use href="#i-check"></use></svg>不改动原视频</span>
+                    <span><svg class="icon"><use href="#i-check"></use></svg>关闭即清理</span>
+                  </div>
+                </div>
+
+                <div class="player-loading" id="player-loading" hidden>
+                  <span class="player-loader-ring"><i></i></span>
+                  <strong id="player-loading-title">正在准备插帧流</strong>
+                  <p id="player-loading-text">正在连接视频线路并生成首批画面…</p>
+                  <div class="player-loading-bar"><span id="player-loading-fill"></span></div>
+                  <small id="player-loading-note">先缓冲几秒，播放会更稳定</small>
+                </div>
+
+                <div class="player-error" id="player-error" hidden>
+                  <span class="player-error-icon"><svg class="icon"><use href="#i-alert"></use></svg></span>
+                  <strong>插帧播放失败</strong>
+                  <p id="player-error-text">请重新解析后再试。</p>
+                  <div class="player-error-actions">
+                    <button class="player-error-retry" id="player-error-retry" type="button">
+                      <svg class="icon"><use href="#i-refresh"></use></svg>重试
+                    </button>
+                    <button class="player-ghost-btn" id="player-error-close" type="button">关闭</button>
+                  </div>
+                </div>
+
+                <div class="player-stage-top" id="player-stage-top" hidden>
+                  <span class="player-live-pill"><span></span><em id="player-live-label">实时插帧</em></span>
+                  <span class="player-stage-fps" id="player-stage-fps">25 → 60 FPS</span>
+                  <span class="player-stage-quality" id="player-stage-quality">720P</span>
+                </div>
+
+                <button class="player-center-play" id="player-center-play" type="button" aria-label="播放" hidden>
+                  <svg class="icon"><use href="#i-play"></use></svg>
+                </button>
+
+                <div class="player-controls" id="player-controls" hidden>
+                  <input class="player-seek" id="player-seek" type="range" min="0" max="100" value="0" step="0.1" aria-label="播放进度">
+                  <div class="player-control-row">
+                    <button class="player-control-btn" id="player-play-btn" type="button" aria-label="播放">
+                      <svg class="icon player-icon-play"><use href="#i-play"></use></svg>
+                      <svg class="icon player-icon-pause"><use href="#i-pause"></use></svg>
+                    </button>
+                    <span class="player-time" id="player-time">00:00 / 00:00</span>
+                    <span class="player-control-spacer"></span>
+                    <span class="player-buffer-label" id="player-buffer-label">缓冲 0s</span>
+                    <div class="player-volume">
+                      <button class="player-control-btn" id="player-mute-btn" type="button" aria-label="静音">
+                        <svg class="icon player-icon-volume"><use href="#i-volume"></use></svg>
+                        <svg class="icon player-icon-muted"><use href="#i-volume-off"></use></svg>
+                      </button>
+                      <input id="player-volume" type="range" min="0" max="1" value="1" step="0.05" aria-label="音量">
+                    </div>
+                    <button class="player-control-btn" id="player-fullscreen-btn" type="button" aria-label="全屏">
+                      <svg class="icon"><use href="#i-fullscreen"></use></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="player-underbar">
+                <div class="player-now-copy">
+                  <span>正在播放</span>
+                  <strong id="player-now-title">等待选择视频</strong>
+                </div>
+                <div class="player-now-meta" id="player-now-meta">
+                  <span><svg class="icon"><use href="#i-bolt"></use></svg>实时生成</span>
+                  <span><svg class="icon"><use href="#i-shield"></use></svg>本机处理</span>
+                </div>
+              </div>
+            </div>
+
+            <aside class="player-side">
+              <section class="player-card">
+                <div class="player-card-head">
+                  <span class="player-card-icon"><svg class="icon"><use href="#i-sliders"></use></svg></span>
+                  <div><h3>播放设置</h3><p>修改设置后会重新生成临时流。</p></div>
+                </div>
+
+                <div class="player-field">
+                  <label class="player-field-label" for="player-quality">清晰度</label>
+                  <div class="player-select-wrap">
+                    <select id="player-quality" aria-label="播放清晰度">
+                      <option value="">请先解析视频</option>
+                    </select>
+                    <svg class="icon"><use href="#i-chevron-down"></use></svg>
+                  </div>
+                </div>
+
+                <div class="player-field">
+                  <div class="player-field-head">
+                    <span class="player-field-label">实时插帧</span>
+                    <span class="player-mini-badge">推荐</span>
+                  </div>
+                  <label class="player-toggle-row" for="player-interpolate">
+                    <span><strong>生成中间帧</strong><small>输出更顺滑的 60fps 画面</small></span>
+                    <span class="switch"><input id="player-interpolate" type="checkbox" checked><span class="switch-track"></span><span class="switch-thumb"></span></span>
+                  </label>
+                </div>
+
+                <div class="player-field" id="player-fps-field">
+                  <div class="player-field-head">
+                    <span class="player-field-label">目标帧率</span>
+                    <small id="player-fps-hint">源视频 25fps</small>
+                  </div>
+                  <div class="player-chip-row" id="player-fps-options">
+                    <button class="player-chip active" type="button" data-player-fps="60"><strong>60</strong><small>FPS</small></button>
+                    <button class="player-chip" type="button" data-player-fps="120"><strong>120</strong><small>高刷屏</small></button>
+                  </div>
+                </div>
+
+                <div class="player-field">
+                  <div class="player-field-head">
+                    <span class="player-field-label">输出分辨率</span>
+                    <small>按源比例缩放</small>
+                  </div>
+                  <div class="player-chip-row player-chip-row-res" id="player-res-options">
+                    <button class="player-chip active" type="button" data-player-height="0">原始</button>
+                    <button class="player-chip" type="button" data-player-height="1080">1080P</button>
+                    <button class="player-chip" type="button" data-player-height="720">720P</button>
+                    <button class="player-chip" type="button" data-player-height="540">540P</button>
+                  </div>
+                </div>
+
+                <div class="player-actions">
+                  <button class="primary-btn player-start-btn" id="player-start-btn" type="button" disabled>
+                    <svg class="icon"><use href="#i-play"></use></svg>
+                    <span>开始插帧播放</span>
+                  </button>
+                  <button class="player-stop-btn" id="player-stop-btn" type="button" hidden>
+                    <svg class="icon"><use href="#i-stop"></use></svg>停止
+                  </button>
+                </div>
+                <p class="player-footnote"><svg class="icon"><use href="#i-info"></use></svg>实时模式使用轻量帧混合插帧，零等待、CPU 占用低；不是 AI 运动补偿。</p>
+              </section>
+
+              <section class="player-card player-status-card">
+                <div class="player-card-head">
+                  <span class="player-card-icon aqua"><svg class="icon"><use href="#i-bolt"></use></svg></span>
+                  <div><h3>实时状态</h3><p>生成进度与播放缓冲。</p></div>
+                </div>
+                <div class="player-metrics">
+                  <div><small>处理速度</small><strong id="player-speed">--</strong></div>
+                  <div><small>已生成</small><strong id="player-generated">0:00</strong></div>
+                  <div><small>输出</small><strong id="player-output">--</strong></div>
+                  <div><small>缓冲</small><strong id="player-buffered">0s</strong></div>
+                </div>
+                <div class="player-progress"><span id="player-progress-fill"></span></div>
+                <div class="player-status-line">
+                  <span class="player-status-dot" id="player-status-dot"></span>
+                  <span id="player-status-text">等待开始</span>
+                </div>
+              </section>
+            </aside>
+          </div>
         </section>
 
         <section class="page" data-page="history" id="page-history">
@@ -546,10 +804,10 @@
               <section class="about-card">
                 <div class="about-brand">
                   <span class="brand-mark about-mark"><svg class="icon"><use href="#i-logo"></use></svg></span>
-                  <div><strong>HWZ Bili 下载器</strong><span id="about-version">v1.0.0</span></div>
+                  <div><strong>HWZ Bili 工具箱</strong><span id="about-version">v1.1.0</span></div>
                 </div>
-                <p>一个为收藏而生的本地 B 站视频下载器。简单、快速，不打扰。</p>
-                <div class="about-chips"><span>本地解析</span><span>多线程加速</span><span>FFmpeg 无损合并</span></div>
+                <p>一个为收藏而生的本地 B 站工具箱。下载、整理，也可以实时插帧播放。</p>
+                <div class="about-chips"><span>本地解析</span><span>多线程加速</span><span>FFmpeg 无损合并</span><span>实时插帧</span></div>
                 <div class="about-foot"><span>仅供个人学习与收藏</span><span>Made by HWZ Studio</span></div>
               </section>
             </div>
@@ -604,6 +862,7 @@
     <span class="boot-spinner"></span>
   </div>
 
+  <script src="assets/vendor/hls.light.min.js?v=__ASSET_VERSION__"></script>
   <script src="assets/app.js?v=__ASSET_VERSION__"></script>
 </body>
 </html>

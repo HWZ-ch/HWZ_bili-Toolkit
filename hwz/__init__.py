@@ -1,4 +1,4 @@
-﻿"""HWZ Bili Downloader application package."""
+"""HWZ Bili Toolkit application package."""
 
-__version__ = "1.0.0"
-__app_name__ = "HWZ Bili 下载器"
+__version__ = "1.1.0"
+__app_name__ = "HWZ Bili 工具箱"

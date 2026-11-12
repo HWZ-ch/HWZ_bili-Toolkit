@@ -11,5 +11,5 @@ if exist "%~dp0dist" (
         exit /b 0
     )
 )
-echo HWZ Bili Downloader executable was not found.
+echo HWZ Bili Toolkit executable was not found.
 pause

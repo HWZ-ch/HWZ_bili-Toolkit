@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from app import WindowApi  # noqa: E402
 from hwz import config  # noqa: E402
 from hwz.bili import BiliClient, ResolvedInput  # noqa: E402
 from hwz.downloader import DownloadManager, _safe_filename  # noqa: E402
+from hwz.player import _playlist_stats_from_text, _scaled_size  # noqa: E402
 from hwz.store import HistoryStore, SettingsStore  # noqa: E402
 
 
@@ -78,6 +80,52 @@ class SmokeTests(unittest.TestCase):
         self.assertEqual(bounds[-1][1], 9 * 1024 * 1024 - 1)
         for index in range(1, len(bounds)):
             self.assertEqual(bounds[index][0], bounds[index - 1][1] + 1)
+
+    def test_player_output_size_keeps_aspect_and_caps_height(self) -> None:
+        self.assertEqual(_scaled_size({"video_width": 3840, "video_height": 2160}, 1080), (1920, 1080))
+        self.assertEqual(_scaled_size({"video_width": 1920, "video_height": 1080}, 720), (1280, 720))
+        self.assertEqual(_scaled_size({"video_width": 1920, "video_height": 1080}, 0), (1920, 1080))
+        # Odd dimensions are rounded down to even values for yuv420p.
+        self.assertEqual(_scaled_size({"video_width": 1919, "video_height": 1079}, 0), (1918, 1078))
+
+    def test_player_playlist_stats(self) -> None:
+        playlist = (
+            "#EXTM3U\n#EXT-X-PLAYLIST-TYPE:EVENT\n"
+            "#EXTINF:1.000000,\nseg_00000.m4s\n"
+            "#EXTINF:0.500000,\nseg_00001.m4s\n"
+        )
+        self.assertEqual(_playlist_stats_from_text(playlist), (2, 1.5, False))
+        self.assertEqual(_playlist_stats_from_text(playlist + "#EXT-X-ENDLIST\n"), (2, 1.5, True))
+
+    def test_download_plan_exposes_video_metadata_for_player(self) -> None:
+        client = BiliClient(SettingsStore())
+        client._parse_cache["test-plan"] = {
+            "_created": time.time(),
+            "title": "Demo",
+            "bvid": "BV1GJ411x7h7",
+            "page": 1,
+            "page_count": 1,
+            "duration": 60,
+            "source_url": "https://www.bilibili.com/video/BV1GJ411x7h7",
+            "_best_audio": {"url": "https://example.com/audio.m4a"},
+            "_qualities": [
+                {
+                    "id": "q1080-24-avc",
+                    "label": "1080P 高清",
+                    "width": 1920,
+                    "height": 1080,
+                    "fps": 30,
+                    "_video": {"url": "https://example.com/video.m4s", "backup_urls": []},
+                    "_audio": {"url": "https://example.com/audio.m4a", "backup_urls": []},
+                    "_combined": False,
+                }
+            ],
+        }
+        plan = client.build_download_plan("test-plan", "q1080-24-avc", "video", False)
+        self.assertEqual(plan["video_width"], 1920)
+        self.assertEqual(plan["video_height"], 1080)
+        self.assertEqual(plan["video_fps"], 30)
+        self.assertEqual(len(plan["streams"]), 2)
 
 
 if __name__ == "__main__":

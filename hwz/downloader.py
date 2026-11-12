@@ -411,6 +411,10 @@ class DownloadManager:
         self._ffmpeg = self._find_ffmpeg()
         self._cleanup_old_temp()
 
+    @property
+    def ffmpeg_path(self) -> Path | None:
+        return self._ffmpeg
+
     @staticmethod
     def _find_ffmpeg() -> Path | None:
         candidates = []

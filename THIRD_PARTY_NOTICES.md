@@ -1,12 +1,14 @@
 # 第三方组件与许可声明
 
-HWZ Bili 下载器包含或依赖以下第三方组件。各组件的版权与许可归其各自作者所有。
+HWZ Bili 工具箱包含或依赖以下第三方组件。各组件的版权与许可归其各自作者所有。
 
 ## FFmpeg
 
 - 文件：`vendor/bin/ffmpeg.exe`
 - 版本：9.0.2 essentials build（Gyan.dev，启用 GPL 与 version3）
-- 用途：以 `-c copy` 方式封装/合并 B 站 DASH 音视频流，不进行转码。
+- 用途：
+  - 以 `-c copy` 方式封装/合并下载后的 B 站 DASH 音视频流；
+  - 实时插帧播放时，通过 `minterpolate` 与 H.264/AAC 编码生成本地 HLS 临时流。
 - 许可：GNU General Public License v3（全文见 `vendor/licenses/GPL-3.0.txt`）。
 - 项目主页：https://ffmpeg.org/
 - 源码与构建说明：https://ffmpeg.org/download.html
@@ -38,6 +40,14 @@ FFmpeg 是独立的可执行程序，应用通过命令行调用它。
 - 用途：生成 B 站登录二维码 SVG。
 - 许可：BSD。
 - 项目主页：https://github.com/heuer/segno
+
+## hls.js
+
+- 文件：`web/assets/vendor/hls.light.min.js`
+- 版本：1.6.15（light build）
+- 用途：在 WebView2 中播放本地实时生成的 fMP4 HLS 插帧流。
+- 许可：Apache License 2.0（全文见 `web/assets/vendor/HLS-LICENSE.txt`）。
+- 项目主页：https://github.com/video-dev/hls.js
 
 ## certifi
 

@@ -1305,6 +1305,7 @@ class BiliClient:
     def build_download_plan(self, parse_id: str, quality_id: str, mode: str, save_cover: bool) -> dict:
         record = self.get_parse_record(parse_id)
         mode = "audio" if mode == "audio" else "video"
+        quality = None
         if mode == "audio":
             audio = record.get("_best_audio")
             if not audio or not audio.get("url"):
@@ -1348,6 +1349,9 @@ class BiliClient:
             "cover": record.get("cover") or "",
             "uploader": (record.get("uploader") or {}).get("name") or "",
             "source_url": record.get("source_url") or "",
+            "video_width": (quality or {}).get("width") or 0,
+            "video_height": (quality or {}).get("height") or 0,
+            "video_fps": (quality or {}).get("fps") or 0,
             "mode": mode,
             "quality_label": quality_label,
             "save_cover": bool(save_cover),

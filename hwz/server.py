@@ -23,6 +23,7 @@ from urllib import parse as urlparse
 from . import config
 from .bili import BiliClient, BiliError, fetch_remote_image, is_safe_image_url
 from .downloader import DownloadManager, TaskBusyError
+from .player import InterpolationPlayer, PlayerError
 from .store import DownloadStats, HistoryStore, SettingsStore
 
 log = logging.getLogger(__name__)
@@ -47,6 +48,7 @@ class Application:
         self.history = HistoryStore()
         self.bili = BiliClient(self.settings)
         self.manager = DownloadManager(self.settings, self.history, self.bili.cookie_header)
+        self.player = InterpolationPlayer(self.settings, self.bili, self.manager.ffmpeg_path)
         self.stats = DownloadStats(self.history)
         self.started_at = time.time()
         self._threads: list[threading.Thread] = []
@@ -109,6 +111,7 @@ class Application:
                 "started_at": self.started_at,
                 "platform": sys.platform,
             },
+            "player": self.player.capabilities(),
             "settings": settings,
             "defaults": {"download_dir": str(config.default_download_dir())},
             "account": self.bili.account_public(),
@@ -152,6 +155,10 @@ class Application:
 
     def shutdown(self) -> None:
         try:
+            self.player.stop_all()
+        except Exception:
+            log.exception("Error while shutting down player")
+        try:
             self.manager.shutdown()
         except Exception:
             log.exception("Error while shutting down downloads")
@@ -162,7 +169,7 @@ def _json_bytes(payload: Any) -> bytes:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "HWZBili/1.0"
+    server_version = "HWZBili/1.1"
     protocol_version = "HTTP/1.1"
 
     @property
@@ -186,7 +193,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header(
             "Content-Security-Policy",
             "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; "
-            "script-src 'self'; font-src 'self'; connect-src 'self'; media-src 'self' blob:; "
+            "script-src 'self'; worker-src 'self' blob:; font-src 'self'; connect-src 'self'; media-src 'self' blob:; "
             "object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
         )
         self.end_headers()
@@ -261,6 +268,11 @@ class Handler(BaseHTTPRequestHandler):
                 image_url = (query.get("u") or [""])[0]
                 self._serve_image(image_url)
                 return
+            if re.fullmatch(r"/api/player/[0-9a-f]{16}/(?:index\.m3u8|init\.mp4|seg_\d{5}\.m4s)", path):
+                if not self._require_auth(allow_query=True):
+                    return
+                self._serve_player_media(path)
+                return
             if path.startswith("/api/"):
                 if not self._require_auth():
                     return
@@ -271,6 +283,9 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error_json(exc.message, exc.status, exc.code)
         except BiliError as exc:
             log.info("Bilibili API error %s: %s", exc.code, exc.message)
+            self.send_error_json(exc.message, exc.status, exc.code)
+        except PlayerError as exc:
+            log.info("Player error %s: %s", exc.code, exc.message)
             self.send_error_json(exc.message, exc.status, exc.code)
         except (BrokenPipeError, ConnectionResetError):
             pass
@@ -293,6 +308,9 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error_json(exc.message, exc.status, exc.code)
         except BiliError as exc:
             log.info("Bilibili API error %s: %s", exc.code, exc.message)
+            self.send_error_json(exc.message, exc.status, exc.code)
+        except PlayerError as exc:
+            log.info("Player error %s: %s", exc.code, exc.message)
             self.send_error_json(exc.message, exc.status, exc.code)
         except TaskBusyError as exc:
             self.send_error_json(str(exc), 409, "task_busy")
@@ -347,6 +365,10 @@ class Handler(BaseHTTPRequestHandler):
             except OSError:
                 self.send_json({"free": 0, "total": 0})
             return
+        player_match = re.fullmatch(r"/api/player/session/([0-9a-f]{16})", path)
+        if player_match:
+            self.send_json({"ok": True, "session": app.player.status(player_match.group(1))})
+            return
         raise ApiRequestError("接口不存在。", 404, "not_found")
 
     def _handle_api_post(self, path: str, payload: dict) -> None:
@@ -379,6 +401,24 @@ class Handler(BaseHTTPRequestHandler):
                 },
                 status=201,
             )
+            return
+
+        if path == "/api/player/session":
+            parse_id = str(payload.get("parse_id") or "")
+            quality_id = str(payload.get("quality_id") or "")
+            options = {
+                "target_fps": payload.get("target_fps", 60),
+                "max_height": payload.get("max_height", 0),
+                "interpolate": bool(payload.get("interpolate", True)),
+            }
+            session = app.player.create(parse_id, quality_id, options)
+            self.send_json({"ok": True, "session": session}, status=201)
+            return
+
+        player_match = re.fullmatch(r"/api/player/session/([0-9a-f]{16})/stop", path)
+        if player_match:
+            stopped = app.player.stop(player_match.group(1))
+            self.send_json({"ok": stopped})
             return
 
         if path == "/api/settings":
@@ -419,7 +459,8 @@ class Handler(BaseHTTPRequestHandler):
             ]
             if active:
                 raise ApiRequestError("请先暂停并取消正在下载的任务，再清理缓存。", 409, "task_active")
-            for directory in (config.TEMP_DIR, config.IMAGE_CACHE_DIR, config.YTDLP_CACHE_DIR):
+            app.player.stop_all()
+            for directory in (config.TEMP_DIR, config.PLAYER_DIR, config.IMAGE_CACHE_DIR, config.YTDLP_CACHE_DIR):
                 try:
                     if directory.exists():
                         shutil.rmtree(directory, ignore_errors=True)
@@ -525,6 +566,37 @@ class Handler(BaseHTTPRequestHandler):
             raise ApiRequestError("缺少图片地址。", 400, "missing_image")
         data, content_type = self.app.image(url)
         self._headers(200, content_type, len(data), cache="public, max-age=604800")
+        self._write_body(data)
+
+    def _serve_player_media(self, path: str) -> None:
+        match = re.fullmatch(r"/api/player/([0-9a-f]{16})/(index\.m3u8|init\.mp4|seg_\d{5}\.m4s)", path)
+        if not match:
+            raise ApiRequestError("播放资源不存在。", 404, "not_found")
+        session = self.app.player.get(match.group(1))
+        filename = match.group(2)
+        target = (session.directory / filename).resolve()
+        try:
+            target.relative_to(session.directory.resolve())
+        except ValueError:
+            raise ApiRequestError("播放资源不存在。", 404, "not_found") from None
+        if not target.is_file():
+            raise ApiRequestError("播放资源还在生成中。", 404, "player_not_ready")
+        try:
+            if filename.endswith(".m3u8"):
+                data = session.read_playlist_bytes()
+                if not data:
+                    raise ApiRequestError("播放列表还在生成中。", 404, "player_not_ready")
+            else:
+                data = target.read_bytes()
+        except ApiRequestError:
+            raise
+        except OSError as exc:
+            raise ApiRequestError("播放资源读取失败。", 500, "player_read_failed") from exc
+        if filename.endswith(".m3u8"):
+            content_type = "application/vnd.apple.mpegurl; charset=utf-8"
+        else:
+            content_type = "video/mp4"
+        self._headers(200, content_type, len(data), cache="no-store")
         self._write_body(data)
 
 
